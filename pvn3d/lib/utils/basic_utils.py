@@ -2,8 +2,8 @@
 import os
 import numpy as np
 import cv2
-from lib.utils.ip_basic.ip_basic import depth_map_utils_ycb as depth_map_utils
-from lib.utils.ip_basic.ip_basic import vis_utils
+from pvn3d.lib.utils.ip_basic.ip_basic import depth_map_utils_ycb as depth_map_utils
+from pvn3d.lib.utils.ip_basic.ip_basic import vis_utils
 from plyfile import PlyData
 import random
 import torch
@@ -178,6 +178,13 @@ class Basic_Utils():
                 line.strip() for line in f.readlines()
             ]
         return lines
+    def get_list(self, path):
+        files = os.listdir(path)
+        for i, file in enumerate(files):
+            file = os.path.join(path, file)
+            if os.path.isdir(file):
+                del files[i]
+        return files
 
     def sv_lines(self, p, line_lst):
         with open(p, 'w') as f:

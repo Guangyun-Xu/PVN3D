@@ -17,13 +17,12 @@ import os.path as osp
 import os
 import sys
 sys.path.insert(0, '/home/yumi/Project/6D_pose_estmation/PVN3D/pvn3d')
-sys.path.insert(0, '/usr/local/include/pcl-1.9')
 print(sys.path)
 import argparse
 import time
 import shutil
 import tqdm
-from lib.utils.etw_pytorch_utils.viz import *
+from pvn3d.lib.utils.etw_pytorch_utils.viz import *
 from pvn3d.lib import PVN3D
 from pvn3d.datasets.linemod.linemod_dataset import LM_Dataset
 from pvn3d.lib.loss import OFLoss, FocalLoss
@@ -359,7 +358,8 @@ class Trainer(object):
         it = start_it
         _, eval_frequency = is_to_eval(0, it)
 
-        with tqdm.trange(start_epoch, n_epochs + 1, desc="epochs") as tbar, tqdm.tqdm(
+        with tqdm.trange(start_epoch, n_epochs + 1,
+                         desc="epochs") as tbar, tqdm.tqdm(
             total=eval_frequency, leave=False, desc="train"
         ) as pbar:
 
@@ -370,6 +370,7 @@ class Trainer(object):
                 if log_epoch_f is not None:
                     os.system("echo {} > {}".format(epoch, log_epoch_f))
                 for ibs, batch in enumerate(train_loader):
+
                     self.model.train()
 
                     if self.lr_scheduler is not None:
@@ -448,7 +449,7 @@ if __name__ == "__main__":
         )
     else:
         if args.test_occ:
-            test_ds = OCC_LM_Dataset('test', cls_type=args.cls)
+            test_ds = LM_Dataset('test', cls_type=args.cls)
             test_loader = torch.utils.data.DataLoader(
                 test_ds, batch_size=config.test_mini_batch_size, shuffle=False,
                 num_workers=10

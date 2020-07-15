@@ -382,23 +382,24 @@ def main():
     global DEBUG
     cls = "duck"
     DEBUG = True
-    ds = {}
+    ds = {'val': LM_Dataset('validation', cls),
+          'test': LM_Dataset('test', cls)}  # 用实例作为字典的value,包含LM_Dataset中所有的self.属性
     # ds['train'] = LM_Dataset('train')
-    ds['val'] = LM_Dataset('validation', cls)
-    ds['test'] = LM_Dataset('test', cls)
     idx = dict(
         train=0,
         val=0,
         test=0
-    )
+    )  # {'train': 0, 'val': 0, 'test': 0}
+
     while True:
         for cat in ['test']:
-            datum = ds[cat].__getitem__(idx[cat])
+            datum = ds[cat].__getitem__(idx[cat])  # get_item返回的数据
             bs_utils = ds[cat].bs_utils
             idx[cat] += 1
             datum = [item.numpy() for item in datum]
             rgb, pcld, cld_rgb_nrm, choose, kp_targ_ofst, \
-            ctr_targ_ofst, cls_ids, RTs, labels, kp3ds, ctr3ds, K, cam_scale = datum
+            ctr_targ_ofst, cls_ids, RTs, labels, kp3ds, \
+            ctr3ds, K, cam_scale = datum
             nrm_map = bs_utils.get_normal_map(cld_rgb_nrm[:, 6:], choose[0])
             imshow('nrm_map', nrm_map)
             rgb = rgb.transpose(1, 2, 0)  # [...,::-1].copy()
