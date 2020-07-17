@@ -226,7 +226,7 @@ class LM_Dataset():
                     if self.add_noise:
                         ri = self.trancolor(ri)
                     rgb = np.array(ri)[:, :, :3]
-                meta = self.meta_lst[int(item_name)]  # meta 指的是
+                meta = self.meta_lst[int(item_name)]  # meta 指的是目标物体的位姿和bbox
                 if self.cls_id == 2:
                     for i in range(0, len(meta)):
                         if meta[i]['obj_id'] == 2:
@@ -240,10 +240,10 @@ class LM_Dataset():
                 rnd_typ = 'real'
                 K = self.config.intrinsic_matrix["linemod"]
                 cam_scale = 1000.0
-            rgb = rgb[:, :, ::-1].copy()
+            rgb = rgb[:, :, ::-1].copy()  # r b 互换
             msk_dp = dpt > 1e-6
             if len(labels.shape) > 2:
-                labels = labels[:, :, 0]
+                labels = labels[:, :, 0]  # 转成单通道
             rgb_labels = labels.copy()
 
             if self.add_noise and rnd_typ == 'render':
@@ -360,6 +360,7 @@ class LM_Dataset():
     def __len__(self):
         return len(self.all_lst)
 
+    # 接收一个索引,然后返回用于训练的数据和标签
     def __getitem__(self, idx):  # 调用函数实例时传入
         if self.dataset_name == 'train':
             item_name = self.real_syn_gen()  # 物品的名称

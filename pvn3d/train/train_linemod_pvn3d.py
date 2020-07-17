@@ -437,6 +437,7 @@ class Trainer(object):
 if __name__ == "__main__":
     print("cls_type: ", args.cls)
     if not args.eval_net:
+        # 初始化DataLoader,使得DataLoader拥有训练数据的信息
         train_ds = LM_Dataset('train', cls_type=args.cls)
         train_loader = torch.utils.data.DataLoader(
             train_ds, batch_size=config.mini_batch_size, shuffle=True,
