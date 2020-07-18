@@ -239,7 +239,7 @@ class LM_Dataset():
                 RT = np.concatenate((R, T[:, None]), axis=1)
                 rnd_typ = 'real'
                 K = self.config.intrinsic_matrix["linemod"]
-                cam_scale = 1000.0
+                cam_scale = 1000.0  # 用于单位换算,将深度图的单位由mm转换为m
             rgb = rgb[:, :, ::-1].copy()  # r b 互换
             msk_dp = dpt > 1e-6
             if len(labels.shape) > 2:
@@ -263,7 +263,7 @@ class LM_Dataset():
                 rgb_lst.append(
                     rgb[ic].flatten()[choose].astype(np.float32)
                 )
-            rgb_pt = np.transpose(np.array(rgb_lst), (1, 0)).copy()
+            rgb_pt = np.transpose(np.array(rgb_lst), (1, 0)).copy()  # 每个像素的rgb值
 
             choose = np.array([choose])
             choose_2 = np.array([i for i in range(len(choose[0, :]))])
