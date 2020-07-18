@@ -24,11 +24,11 @@ DEBUG = False
 
 class LM_O_Dataset():
 
-    def __init__(self, dataset_name, data_list_path, cls_type="duck"):
+    def __init__(self,  data_list_path, cls_type="duck"):
 
         self.config = Config(dataset_name='linemod', cls_type=cls_type)
         self.bs_utils = Basic_Utils(self.config)
-        self.dataset_name = dataset_name
+
         self.xmap = np.array([[j for i in range(640)] for j in range(480)])
         self.ymap = np.array([[i for i in range(640)] for j in range(480)])
 
@@ -47,42 +47,42 @@ class LM_O_Dataset():
         self.dataList = self.bs_utils.read_lines(data_list_path)  # list
 
 
-        if dataset_name == 'train':
-            self.add_noise = True
-            real_img_pth = os.path.join(
-                self.cls_root, "train.txt"
-            )
-            self.real_lst = self.bs_utils.read_lines(real_img_pth)
-
-            rnd_img_pth = os.path.join(
-                self.root, "renders/{}/file_list.txt".format(cls_type)
-            )
-            self.rnd_lst = self.bs_utils.read_lines(rnd_img_pth)
-
-            fuse_img_pth = os.path.join(
-                self.root, "fuse/{}/file_list.txt".format(cls_type)
-            )
-            try:
-                self.fuse_lst = self.bs_utils.read_lines(fuse_img_pth)
-            except:  # no fuse dataset
-                self.fuse_lst = self.rnd_lst
-            self.all_lst = self.real_lst + self.rnd_lst + self.fuse_lst
-        else:
-            self.add_noise = False
-            self.pp_data = None
-            if os.path.exists(self.config.preprocessed_testset_pth) and self.config.use_preprocess:
-                print('Loading valtestset.')
-                with open(self.config.preprocessed_testset_pth, 'rb') as f:
-                    self.pp_data = pkl.load(f)
-                self.all_lst = [i for i in range(len(self.pp_data))]
-                print('Finish loading valtestset.')
-            else:
-                tst_img_pth = os.path.join(
-                    self.cls_root, "test.txt"
-                )
-                self.tst_lst = self.bs_utils.read_lines(tst_img_pth)
-                self.all_lst = self.tst_lst
-        print("{}_dataset_size: ".format(dataset_name), len(self.all_lst))
+        # if dataset_name == 'train':
+        #     self.add_noise = True
+        #     real_img_pth = os.path.join(
+        #         self.cls_root, "train.txt"
+        #     )
+        #     self.real_lst = self.bs_utils.read_lines(real_img_pth)
+        #
+        #     rnd_img_pth = os.path.join(
+        #         self.root, "renders/{}/file_list.txt".format(cls_type)
+        #     )
+        #     self.rnd_lst = self.bs_utils.read_lines(rnd_img_pth)
+        #
+        #     fuse_img_pth = os.path.join(
+        #         self.root, "fuse/{}/file_list.txt".format(cls_type)
+        #     )
+        #     try:
+        #         self.fuse_lst = self.bs_utils.read_lines(fuse_img_pth)
+        #     except:  # no fuse dataset
+        #         self.fuse_lst = self.rnd_lst
+        #     self.all_lst = self.real_lst + self.rnd_lst + self.fuse_lst
+        # else:
+        #     self.add_noise = False
+        #     self.pp_data = None
+        #     if os.path.exists(self.config.preprocessed_testset_pth) and self.config.use_preprocess:
+        #         print('Loading valtestset.')
+        #         with open(self.config.preprocessed_testset_pth, 'rb') as f:
+        #             self.pp_data = pkl.load(f)
+        #         self.all_lst = [i for i in range(len(self.pp_data))]
+        #         print('Finish loading valtestset.')
+        #     else:
+        #         tst_img_pth = os.path.join(
+        #             self.cls_root, "test.txt"
+        #         )
+        #         self.tst_lst = self.bs_utils.read_lines(tst_img_pth)
+        #         self.all_lst = self.tst_lst
+        print("{}_dataset_size: ".format(data_list_path), len(self.dataList))
 
     def get_meta_data(self, folderPath, sceneId, obj_id):
         metaFilePath = os.path.join(folderPath, "scene_gt.json")
@@ -95,6 +95,16 @@ class LM_O_Dataset():
             for objMeta in sceneMateDate:
                 if objMeta['obj_id'] == int(obj_id):
                     return objMeta
+
+    def get_cam_parameter(self, folderPath, sceneId):
+        sceneInfoPath = os.path.join(folderPath, "scene_camera.json")
+        with open(sceneInfoPath, 'r') as f2:
+            sceneInfo = json.load(f2)
+            sceneId = sceneId.lstrip('0')
+            if sceneId == '':
+                sceneId = '0'
+            sceneDate = sceneInfo[sceneId]
+            return sceneDate
 
 
 
@@ -221,144 +231,115 @@ class LM_O_Dataset():
         return rgb, dpt
 
     def get_item(self, item_name):
-        try:  # 如果try中的语句块出现异常,执行except中的内容
-            if "pkl" in item_name:  #
-                data = pkl.load(open(item_name, "rb"))
-                dpt = data['depth']
-                rgb = data['rgb']
-                labels = data['mask']
-                K = data['K']
-                RT = data['RT']
-                rnd_typ = data['rnd_typ']
-                if rnd_typ == "fuse":
-                    labels = (labels == self.cls_id).astype("uint8")
-                else:
-                    labels = (labels > 0).astype("uint8")
-                cam_scale = 1.0
+        words = item_name.split()
+        folderName = words[0]
+        rgbName = depthName = sceneId = words[1]
+        segName = words[2]
+        depthPath = os.path.join(folderName, "depth/{}.png".format(depthName))
+        rgbPath = os.path.join(folderName, "rgb/{}.jpg".format(rgbName))
+        segPath = os.path.join(folderName, "mask_visib/{}.png".format(segName))
+
+        with Image.open(depthPath) as di:
+            dpt = np.array(di)
+        with Image.open(segPath) as li:
+            labels = np.array(li)  # labels : mask
+            labels = (labels > 0).astype("uint8")
+        with Image.open(rgbPath) as ri:
+            # if self.add_noise:
+            #     ri = self.trancolor(ri)
+            rgb = np.array(ri)[:, :, :3]
+
+        meta = self.get_meta_data(folderName, sceneId, self.cls_id)  # meta 指的是目标物体的位姿和bbox
+
+        R = np.resize(np.array(meta['cam_R_m2c']), (3, 3))
+        T = np.array(meta['cam_t_m2c']) / 1000.0  # 以m为单位
+        RT = np.concatenate((R, T[:, None]), axis=1)
+        rnd_typ = 'real'
+        camParameter = self.get_cam_parameter(folderName, sceneId)
+        K = np.resize(np.array(camParameter['cam_K']), (3, 3))
+        cam_scale = 10000.0  # BOP中的深度以0.1mm为单位, 转换成m需要除以10000
+
+        rgb = rgb[:, :, ::-1].copy()  # # r b 互换
+        msk_dp = dpt > 1e-6
+        if len(labels.shape) > 2:
+            labels = labels[:, :, 0]  # 转成单通道
+        rgb_labels = labels.copy()
+
+        rgb = np.transpose(rgb, (2, 0, 1))  # hwc2chw
+        cld, choose = self.bs_utils.dpt_2_cld(dpt, cam_scale, K)  # k:内参, cam_scale: 设置为1.0,不知道什么含义
+        # choose : 深度图中不为0的像素的索引
+
+        labels = labels.flatten()[choose]  # labels : mask
+        rgb_lst = []
+        for ic in range(rgb.shape[0]):
+            rgb_lst.append(
+                rgb[ic].flatten()[choose].astype(np.float32)
+            )
+        rgb_pt = np.transpose(np.array(rgb_lst), (1, 0)).copy()
+
+        choose = np.array([choose])
+        choose_2 = np.array([i for i in range(len(choose[0, :]))])
+
+        if len(choose_2) < 400:  # 如果场景中点云的数量过少,返回None
+            return None
+        if len(choose_2) > self.config.n_sample_points:
+            c_mask = np.zeros(len(choose_2), dtype=int)
+            c_mask[:self.config.n_sample_points] = 1
+            np.random.shuffle(c_mask)
+            choose_2 = choose_2[c_mask.nonzero()]  # c_mask: 随机的0 1 组成的数组,choose_2:用于降采样
+        else:
+            choose_2 = np.pad(choose_2, (0, self.config.n_sample_points - len(choose_2)), 'wrap')
+
+        cld_rgb = np.concatenate((cld, rgb_pt), axis=1)
+        cld_rgb = cld_rgb[choose_2, :]
+        cld = cld[choose_2, :]
+
+        normal = self.get_normal(cld)[:, :3]
+        normal[np.isnan(normal)] = 0.0
+
+        cld_rgb_nrm = np.concatenate((cld_rgb, normal), axis=1)
+        choose = choose[:, choose_2]  # 降采样后的像素对应的原图上的索引
+        labels = labels[choose_2].astype(np.int32)
+
+        RTs = np.zeros((self.config.n_objects, 3, 4))
+        kp3ds = np.zeros((self.config.n_objects, self.config.n_keypoints, 3))
+        ctr3ds = np.zeros((self.config.n_objects, 3))
+        cls_ids = np.zeros((self.config.n_objects, 1))
+        kp_targ_ofst = np.zeros((self.config.n_sample_points, self.config.n_keypoints, 3))
+        ctr_targ_ofst = np.zeros((self.config.n_sample_points, 3))
+        for i, cls_id in enumerate([1]):
+            RTs[i] = RT
+            r = RT[:, :3]
+            t = RT[:, 3]
+
+            ctr = self.bs_utils.get_ctr(self.cls_type, ds_type="linemod")[:, None]
+            ctr = np.dot(ctr.T, r.T) + t
+            ctr3ds[i, :] = ctr[0]
+            msk_idx = np.where(labels == cls_id)[0]
+
+            target_offset = np.array(np.add(cld, -1.0 * ctr3ds[i, :]))
+            ctr_targ_ofst[msk_idx, :] = target_offset[msk_idx, :]
+            cls_ids[i, :] = np.array([1])
+
+            key_kpts = ''
+            if self.config.n_keypoints == 8:
+                kp_type = 'farthest'
             else:
-                words = item_name.split()
-                folderName = words[0]
-                rgbName ,depthName, sceneId = words[1]
-                segName = words[2]
-                depthPath = os.path.join(folderName, "depth/{}.png".format(depthName))
-                rgbPath = os.path.join(folderName, "rgb/{}.png".format(rgbName))
-                segPath = os.path.join(folderName, "mask_visib/{}.png".format(segName))
+                kp_type = 'farthest{}'.format(self.config.n_keypoints)
+            kps = self.bs_utils.get_kps(
+                self.cls_type, kp_type=kp_type, ds_type='linemod'
+            )
+            kps = np.dot(kps, r.T) + t
+            kp3ds[i] = kps
 
-                with Image.open(depthPath) as di:
-                    dpt = np.array(di)
-                with Image.open(segPath) as li:
-                    labels = np.array(li)  # labels : mask
-                    labels = (labels > 0).astype("uint8")
-                with Image.open(rgbPath) as ri:
-                    if self.add_noise:
-                        ri = self.trancolor(ri)
-                    rgb = np.array(ri)[:, :, :3]
+            target = []
+            for kp in kps:
+                target.append(np.add(cld, -1.0 * kp))
+            target_offset = np.array(target).transpose(1, 0, 2)  # [npts, nkps, c]
+            kp_targ_ofst[msk_idx, :, :] = target_offset[msk_idx, :, :]
 
-
-                meta = self.get_meta_data(folderName, sceneId, self.cls_id) # meta 指的是目标物体的位姿和bbox
-
-                R = np.resize(np.array(meta['cam_R_m2c']), (3, 3))
-                T = np.array(meta['cam_t_m2c']) / 1000.0  # 以m为单位
-                RT = np.concatenate((R, T[:, None]), axis=1)
-                rnd_typ = 'real'
-                K = self.config.intrinsic_matrix["linemod"]
-                cam_scale = 1000.0
-            rgb = rgb[:, :, ::-1].copy()  # # r b 互换
-            msk_dp = dpt > 1e-6
-            if len(labels.shape) > 2:
-                labels = labels[:, :, 0]  # 转成单通道
-            rgb_labels = labels.copy()
-
-            rgb = np.transpose(rgb, (2, 0, 1))  # hwc2chw
-            cld, choose = self.bs_utils.dpt_2_cld(dpt, cam_scale, K)  # k:内参, cam_scale: 设置为1.0,不知道什么含义
-            # choose : 深度图中不为0的像素的索引
-
-            labels = labels.flatten()[choose]  # labels : mask
-            rgb_lst = []
-            for ic in range(rgb.shape[0]):
-                rgb_lst.append(
-                    rgb[ic].flatten()[choose].astype(np.float32)
-                )
-            rgb_pt = np.transpose(np.array(rgb_lst), (1, 0)).copy()
-
-            choose = np.array([choose])
-            choose_2 = np.array([i for i in range(len(choose[0, :]))])
-
-            if len(choose_2) < 400:  # 如果场景中点云的数量过少,返回None
-                return None
-            if len(choose_2) > self.config.n_sample_points:
-                c_mask = np.zeros(len(choose_2), dtype=int)
-                c_mask[:self.config.n_sample_points] = 1
-                np.random.shuffle(c_mask)
-                choose_2 = choose_2[c_mask.nonzero()]  # c_mask: 随机的0 1 组成的数组,choose_2:用于降采样
-            else:
-                choose_2 = np.pad(choose_2, (0, self.config.n_sample_points - len(choose_2)), 'wrap')
-
-            cld_rgb = np.concatenate((cld, rgb_pt), axis=1)
-            cld_rgb = cld_rgb[choose_2, :]
-            cld = cld[choose_2, :]
-
-            normal = self.get_normal(cld)[:, :3]
-            normal[np.isnan(normal)] = 0.0
-
-            cld_rgb_nrm = np.concatenate((cld_rgb, normal), axis=1)
-            choose = choose[:, choose_2]  # 降采样后的像素对应的原图上的索引
-            labels = labels[choose_2].astype(np.int32)
-
-            RTs = np.zeros((self.config.n_objects, 3, 4))
-            kp3ds = np.zeros((self.config.n_objects, self.config.n_keypoints, 3))
-            ctr3ds = np.zeros((self.config.n_objects, 3))
-            cls_ids = np.zeros((self.config.n_objects, 1))
-            kp_targ_ofst = np.zeros((self.config.n_sample_points, self.config.n_keypoints, 3))
-            ctr_targ_ofst = np.zeros((self.config.n_sample_points, 3))
-            for i, cls_id in enumerate([1]):
-                RTs[i] = RT
-                r = RT[:, :3]
-                t = RT[:, 3]
-
-                ctr = self.bs_utils.get_ctr(self.cls_type, ds_type="linemod")[:, None]
-                ctr = np.dot(ctr.T, r.T) + t
-                ctr3ds[i, :] = ctr[0]
-                msk_idx = np.where(labels == cls_id)[0]
-
-                target_offset = np.array(np.add(cld, -1.0 * ctr3ds[i, :]))
-                ctr_targ_ofst[msk_idx, :] = target_offset[msk_idx, :]
-                cls_ids[i, :] = np.array([1])
-
-                key_kpts = ''
-                if self.config.n_keypoints == 8:
-                    kp_type = 'farthest'
-                else:
-                    kp_type = 'farthest{}'.format(self.config.n_keypoints)
-                kps = self.bs_utils.get_kps(
-                    self.cls_type, kp_type=kp_type, ds_type='linemod'
-                )
-                kps = np.dot(kps, r.T) + t
-                kp3ds[i] = kps
-
-                target = []
-                for kp in kps:
-                    target.append(np.add(cld, -1.0 * kp))
-                target_offset = np.array(target).transpose(1, 0, 2)  # [npts, nkps, c]
-                kp_targ_ofst[msk_idx, :, :] = target_offset[msk_idx, :, :]
-
-            # rgb, pcld, cld_rgb_nrm, choose, kp_targ_ofst, ctr_targ_ofst, cls_ids, RTs, labels, kp_3ds, ctr_3ds
-            if DEBUG:
-                return torch.from_numpy(rgb.astype(np.float32)), \
-                       torch.from_numpy(cld.astype(np.float32)), \
-                       torch.from_numpy(cld_rgb_nrm.astype(np.float32)), \
-                       torch.LongTensor(choose.astype(np.int32)), \
-                       torch.from_numpy(kp_targ_ofst.astype(np.float32)), \
-                       torch.from_numpy(ctr_targ_ofst.astype(np.float32)), \
-                       torch.LongTensor(cls_ids.astype(np.int32)), \
-                       torch.from_numpy(RTs.astype(np.float32)), \
-                       torch.LongTensor(labels.astype(np.int32)), \
-                       torch.from_numpy(kp3ds.astype(np.float32)), \
-                       torch.from_numpy(ctr3ds.astype(np.float32)), \
-                       torch.from_numpy(K.astype(np.float32)), \
-                       torch.from_numpy(np.array(cam_scale).astype(np.float32))
-
-            # choose: 降采样后的点对应的原深度图上的索引
+        # rgb, pcld, cld_rgb_nrm, choose, kp_targ_ofst, ctr_targ_ofst, cls_ids, RTs, labels, kp_3ds, ctr_3ds
+        if DEBUG:
             return torch.from_numpy(rgb.astype(np.float32)), \
                    torch.from_numpy(cld.astype(np.float32)), \
                    torch.from_numpy(cld_rgb_nrm.astype(np.float32)), \
@@ -369,12 +350,25 @@ class LM_O_Dataset():
                    torch.from_numpy(RTs.astype(np.float32)), \
                    torch.LongTensor(labels.astype(np.int32)), \
                    torch.from_numpy(kp3ds.astype(np.float32)), \
-                   torch.from_numpy(ctr3ds.astype(np.float32)),
-        except:
-            return None
+                   torch.from_numpy(ctr3ds.astype(np.float32)), \
+                   torch.from_numpy(K.astype(np.float32)), \
+                   torch.from_numpy(np.array(cam_scale).astype(np.float32))
+
+        # choose: 降采样后的点对应的原深度图上的索引
+        return torch.from_numpy(rgb.astype(np.float32)), \
+               torch.from_numpy(cld.astype(np.float32)), \
+               torch.from_numpy(cld_rgb_nrm.astype(np.float32)), \
+               torch.LongTensor(choose.astype(np.int32)), \
+               torch.from_numpy(kp_targ_ofst.astype(np.float32)), \
+               torch.from_numpy(ctr_targ_ofst.astype(np.float32)), \
+               torch.LongTensor(cls_ids.astype(np.int32)), \
+               torch.from_numpy(RTs.astype(np.float32)), \
+               torch.LongTensor(labels.astype(np.int32)), \
+               torch.from_numpy(kp3ds.astype(np.float32)), \
+               torch.from_numpy(ctr3ds.astype(np.float32)),
 
     def __len__(self):
-        return len(self.all_lst)
+        return len(self.dataList)
 
     # 接收一个索引,然后返回用于训练的数据和标签
     def __getitem__(self, idx):  # 调用函数实例时传入
@@ -387,12 +381,11 @@ class LM_O_Dataset():
 def main():
     # self.config.mini_batch_size = 1
     global DEBUG
-    cls = "duck"
+    cls = "ape"  # 1
     DEBUG = True
-    dataListPath = ''
-    ds = {'val': LM_O_Dataset('validation', dataListPath, cls),
-          'test': LM_O_Dataset('test', dataListPath, cls)}  # 用实例作为字典的value,包含LM_Dataset中所有的self.属性
-    # ds['train'] = LM_Dataset('train')
+    dataListPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/lm-o/train_pbr/trainList_1.txt'
+
+    ds = LM_O_Dataset(dataListPath, cls)
     idx = dict(
         train=0,
         val=0,
@@ -400,10 +393,10 @@ def main():
     )  # {'train': 0, 'val': 0, 'test': 0}
 
     while True:
-        for cat in ['test']:
-            datum = ds[cat].__getitem__(idx[cat])  # get_item返回的数据
-            bs_utils = ds[cat].bs_utils
-            idx[cat] += 1
+        for i in range(5):
+            datum = ds.__getitem__(i)  # get_item返回的数据
+            bs_utils = ds.bs_utils
+
             datum = [item.numpy() for item in datum]
             rgb, pcld, cld_rgb_nrm, choose, kp_targ_ofst, \
             ctr_targ_ofst, cls_ids, RTs, labels, kp3ds, \
@@ -426,7 +419,7 @@ def main():
                 rgb = bs_utils.draw_p2ds(
                     rgb, ctr_2ds, 4, (255, 0, 0)  # bs_utils.get_label_color(cls_ids[i], mode=1)
                 )
-            imshow('{}_rgb'.format(cat), rgb)
+            imshow('{}_rgb'.format(cls), rgb)
             cmd = waitKey(0)
             if cmd == ord('q'):
                 exit()
