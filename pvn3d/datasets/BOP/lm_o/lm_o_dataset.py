@@ -24,27 +24,30 @@ DEBUG = False
 
 class LM_O_Dataset():
 
-    def __init__(self,  data_list_path, cls_type="duck"):
+    def __init__(self,  data_list_path, cls_id):
 
-        self.config = Config(dataset_name='linemod', cls_type=cls_type)
-        self.bs_utils = Basic_Utils(self.config)
+        # self.config = Config(dataset_name='linemod', cls_type=cls_type)
+        self.bs_utils = Basic_Utils()
+        self.n_sample_points = 10000
 
         self.xmap = np.array([[j for i in range(640)] for j in range(480)])
         self.ymap = np.array([[i for i in range(640)] for j in range(480)])
 
         self.trancolor = transforms.ColorJitter(0.2, 0.2, 0.2, 0.05)
         self.norm = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.224])
-        self.obj_dict = self.config.lm_obj_dict
+        # self.obj_dict = self.config.lm_obj_dict
 
-        self.cls_type = cls_type
-        self.cls_id = self.obj_dict[cls_type]
-        print("cls_id in lm_dataset.py", self.cls_id)
-        self.root = os.path.join(self.config.lm_root, 'Linemod_preprocessed')
-        self.cls_root = os.path.join(self.root, "data/%02d/" % self.cls_id)
+        self.cls_id = cls_id
+        # self.cls_type = cls_type
+        # self.cls_id = self.obj_dict[cls_type]
+        print("load {} data by LM_O_Dataset.py".format(self.cls_id))
+        # self.root = os.path.join(self.config.lm_root, 'Linemod_preprocessed')
+        # self.cls_root = os.path.join(self.root, "data/%02d/" % self.cls_id)
         self.rng = np.random
-        meta_file = open(os.path.join(self.cls_root, 'gt.yml'), "r")
-        self.meta_lst = yaml.load(meta_file)
+        # meta_file = open(os.path.join(self.cls_root, 'gt.yml'), "r")
+        # self.meta_lst = yaml.load(meta_file)
         self.dataList = self.bs_utils.read_lines(data_list_path)  # list
+
 
 
         # if dataset_name == 'train':
@@ -282,13 +285,13 @@ class LM_O_Dataset():
 
         if len(choose_2) < 400:  # 如果场景中点云的数量过少,返回None
             return None
-        if len(choose_2) > self.config.n_sample_points:
+        if len(choose_2) > self.n_sample_points:
             c_mask = np.zeros(len(choose_2), dtype=int)
-            c_mask[:self.config.n_sample_points] = 1
+            c_mask[:self.n_sample_points] = 1
             np.random.shuffle(c_mask)
             choose_2 = choose_2[c_mask.nonzero()]  # c_mask: 随机的0 1 组成的数组,choose_2:用于降采样
         else:
-            choose_2 = np.pad(choose_2, (0, self.config.n_sample_points - len(choose_2)), 'wrap')
+            choose_2 = np.pad(choose_2, (0, self.n_sample_points - len(choose_2)), 'wrap')
 
         cld_rgb = np.concatenate((cld, rgb_pt), axis=1)
         cld_rgb = cld_rgb[choose_2, :]
@@ -301,20 +304,20 @@ class LM_O_Dataset():
         choose = choose[:, choose_2]  # 降采样后的像素对应的原图上的索引
         labels = labels[choose_2].astype(np.int32)
 
-        RTs = np.zeros((self.config.n_objects, 3, 4))
-        kp3ds = np.zeros((self.config.n_objects, self.config.n_keypoints, 3))
-        ctr3ds = np.zeros((self.config.n_objects, 3))
-        cls_ids = np.zeros((self.config.n_objects, 1))
-        kp_targ_ofst = np.zeros((self.config.n_sample_points, self.config.n_keypoints, 3))
-        ctr_targ_ofst = np.zeros((self.config.n_sample_points, 3))
+        RTs = np.zeros((2, 3, 4))
+        kp3ds = np.zeros((2, 5, 3))
+        ctr3ds = np.zeros((2, 3))
+        cls_ids = np.zeros((2, 1))
+        kp_targ_ofst = np.zeros((10000, 5, 3))
+        ctr_targ_ofst = np.zeros((10000, 3))
         for i, cls_id in enumerate([1]):
             RTs[i] = RT
             r = RT[:, :3]
             t = RT[:, 3]
 
-            ctr = self.bs_utils.get_ctr(self.cls_type, ds_type="linemod")[:, None]
-            ctr = np.dot(ctr.T, r.T) + t
-            ctr3ds[i, :] = ctr[0]
+            # ctr = self.bs_utils.get_ctr(self.cls_type, ds_type="linemod")[:, None]
+            # ctr = np.dot(ctr.T, r.T) + t
+            # ctr3ds[i, :] = ctr[0]
             msk_idx = np.where(labels == cls_id)[0]
 
             target_offset = np.array(np.add(cld, -1.0 * ctr3ds[i, :]))
@@ -322,21 +325,21 @@ class LM_O_Dataset():
             cls_ids[i, :] = np.array([1])
 
             key_kpts = ''
-            if self.config.n_keypoints == 8:
-                kp_type = 'farthest'
-            else:
-                kp_type = 'farthest{}'.format(self.config.n_keypoints)
-            kps = self.bs_utils.get_kps(
-                self.cls_type, kp_type=kp_type, ds_type='linemod'
-            )
-            kps = np.dot(kps, r.T) + t
-            kp3ds[i] = kps
+            # if self.config.n_keypoints == 8:
+            #     kp_type = 'farthest'
+            # else:
+            #     kp_type = 'farthest{}'.format(self.config.n_keypoints)
+            # kps = self.bs_utils.get_kps(
+            #     self.cls_type, kp_type=kp_type, ds_type='linemod'
+            # )
+            # kps = np.dot(kps, r.T) + t
+            # kp3ds[i] = kps
 
             target = []
-            for kp in kps:
-                target.append(np.add(cld, -1.0 * kp))
-            target_offset = np.array(target).transpose(1, 0, 2)  # [npts, nkps, c]
-            kp_targ_ofst[msk_idx, :, :] = target_offset[msk_idx, :, :]
+            # for kp in kps:
+            #     target.append(np.add(cld, -1.0 * kp))
+            # target_offset = np.array(target).transpose(1, 0, 2)  # [npts, nkps, c]
+            # kp_targ_ofst[msk_idx, :, :] = target_offset[msk_idx, :, :]
 
         # rgb, pcld, cld_rgb_nrm, choose, kp_targ_ofst, ctr_targ_ofst, cls_ids, RTs, labels, kp_3ds, ctr_3ds
         if DEBUG:
@@ -359,13 +362,9 @@ class LM_O_Dataset():
                torch.from_numpy(cld.astype(np.float32)), \
                torch.from_numpy(cld_rgb_nrm.astype(np.float32)), \
                torch.LongTensor(choose.astype(np.int32)), \
-               torch.from_numpy(kp_targ_ofst.astype(np.float32)), \
-               torch.from_numpy(ctr_targ_ofst.astype(np.float32)), \
                torch.LongTensor(cls_ids.astype(np.int32)), \
-               torch.from_numpy(RTs.astype(np.float32)), \
                torch.LongTensor(labels.astype(np.int32)), \
-               torch.from_numpy(kp3ds.astype(np.float32)), \
-               torch.from_numpy(ctr3ds.astype(np.float32)),
+
 
     def __len__(self):
         return len(self.dataList)
