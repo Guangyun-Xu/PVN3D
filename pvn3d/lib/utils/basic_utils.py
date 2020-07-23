@@ -157,12 +157,12 @@ class PoseTransformer(object):
 
 class Basic_Utils():
 
-    def __init__(self, config):
+    def __init__(self):
         self.xmap = np.array([[j for i in range(640)] for j in range(480)])
         self.ymap = np.array([[i for i in range(640)] for j in range(480)])
-        self.config = config
-        if config.dataset_name == "ycb":
-            self.ycb_cls_lst = config.ycb_cls_lst
+        # self.config = config
+        # if config.dataset_name == "ycb":
+        #     self.ycb_cls_lst = config.ycb_cls_lst
         self.ycb_cls_ptsxyz_dict = {}
         self.ycb_cls_ptsxyz_cuda_dict = {}
         self.ycb_cls_kps_dict = {}

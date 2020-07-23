@@ -16,9 +16,9 @@ from lib.utils.meanshift_pytorch import MeanShiftTorch
 
 
 config = Config(dataset_name='ycb')
-bs_utils = Basic_Utils(config)
+bs_utils = Basic_Utils()
 config_lm = Config(dataset_name="linemod")
-bs_utils_lm = Basic_Utils(config_lm)
+bs_utils_lm = Basic_Utils()
 cls_lst = config.ycb_cls_lst
 
 
