@@ -372,7 +372,7 @@ class Trainer(object):
                     os.system("echo {} > {}".format(epoch, log_epoch_f))
                 for ibs, batch in enumerate(train_loader):
 
-                    self.model.train()
+                    self.model.train()  # self.model是class pvn3d()的一个实例
 
                     if self.lr_scheduler is not None:
                         self.lr_scheduler.step(it)
@@ -552,7 +552,7 @@ if __name__ == "__main__":
         trainer.train(
             it, start_epoch, config.n_total_epoch, train_loader, val_loader,
             best_loss=best_loss
-        )  # it:
+        )  # it: 已进行的迭代次数,没有预训练模型时为-1
 
         if start_epoch == config.n_total_epoch:
             _ = trainer.eval_epoch(val_loader)
