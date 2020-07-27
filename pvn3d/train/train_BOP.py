@@ -338,19 +338,21 @@ class Trainer(object):
             Testing loss of the best model
         """
 
+
         def is_to_eval(epoch, it):
+            dataNum = train_loader.__len__()
             if it < 300 * 100:
-                eval_frequency = (50 * 100)
+                eval_frequency = (dataNum)
             elif it < 400 * 100:
-                eval_frequency = (20 * 100)
+                eval_frequency = (0.4*dataNum)
             elif it < 500 * 100:
-                eval_frequency = (12 * 100)
+                eval_frequency = (0.3*dataNum)
             elif it < 600 * 100:
-                eval_frequency = (8 * 100)
+                eval_frequency = (0.2*dataNum)
             elif it < 800 * 100:
-                eval_frequency = (4 * 100)
+                eval_frequency = (0.1*dataNum)
             else:
-                eval_frequency = (2 * 100)
+                eval_frequency = (0.05*dataNum)
             to_eval = (it % eval_frequency) == 0
             return to_eval, eval_frequency
 
@@ -449,12 +451,13 @@ if __name__ == "__main__":
         train_ds = LM_O_Dataset(trainDataPath, cls_id)
         train_loader = torch.utils.data.DataLoader(
             train_ds, batch_size=config.mini_batch_size, shuffle=True,
-            num_workers=20, worker_init_fn=worker_init_fn
-        )
+            num_workers=6, worker_init_fn=worker_init_fn
+        )  # num_workers:
+
         val_ds = LM_O_Dataset(validDataPath, cls_id)
         val_loader = torch.utils.data.DataLoader(
             val_ds, batch_size=config.val_mini_batch_size, shuffle=False,
-            num_workers=10
+            num_workers=6
         )
     else:
         if args.test_occ:

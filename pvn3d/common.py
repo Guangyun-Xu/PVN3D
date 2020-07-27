@@ -35,7 +35,7 @@ class Config:
         self.log_eval_dir = os.path.join(self.log_dir, 'eval_results', self.cls_type)
         ensure_fd(self.log_eval_dir)
 
-        self.n_total_epoch = 25
+        self.n_total_epoch = 1
         self.mini_batch_size = 1
         self.num_mini_batch_per_epoch = 4000
         self.val_mini_batch_size = 24
