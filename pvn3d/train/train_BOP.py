@@ -373,12 +373,14 @@ class Trainer(object):
                 for ibs, batch in enumerate(train_loader):
 
                     self.model.train()  # self.model是class pvn3d()的一个实例
+                                        # self.model.train(): 将模型的training属性设置为
+                                        # true
 
                     if self.lr_scheduler is not None:
-                        self.lr_scheduler.step(it)
+                        self.lr_scheduler.step(it)  # 定义学习率时指定了优化器
 
                     if self.bnm_scheduler is not None:
-                        self.bnm_scheduler.step(it)
+                        self.bnm_scheduler.step(it)  #
 
                     self.optimizer.zero_grad()
                     _, loss, res = self.model_fn(self.model, batch)
@@ -437,8 +439,8 @@ class Trainer(object):
 
 if __name__ == "__main__":
     cls_id = '1'
-    trainDataPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/lm-o/train_pbr/trainList_1.txt'
-    validDataPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/lm-o/train_pbr/validList_1.txt'
+    trainDataPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/train_pbr/trainList_1.txt'
+    validDataPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/BOP_test19-20/validList_1.txt'
     print("cls_id: ", cls_id)
     if not args.eval_net:
         # 初始化DataLoader,使得DataLoader拥有训练数据的信息
@@ -474,6 +476,7 @@ if __name__ == "__main__":
     ).cuda()
     model = convert_model(model)
     model.cuda()
+
     optimizer = optim.Adam(
         model.parameters(), lr=args.lr, weight_decay=args.weight_decay
     )
@@ -495,13 +498,14 @@ if __name__ == "__main__":
             it, start_epoch, best_loss = checkpoint_status
 
     model = nn.DataParallel(
-        model
+        model, device_ids=[0]
     )
 
+    # 学习率变化策略
     lr_scheduler = CyclicLR(
         optimizer, base_lr=1e-5, max_lr=1e-3,
         step_size=config.n_total_epoch * config.num_mini_batch_per_epoch // 6,
-        mode = 'triangular'
+        mode='triangular'
     )
 
     bnm_lmbd = lambda it: max(
@@ -525,7 +529,7 @@ if __name__ == "__main__":
 
     viz.text(pprint.pformat(vars(args)))
 
-    checkpoint_fd = config.log_model_dir
+    checkpoint_fd = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/checkPoint'
 
     trainer = Trainer(
         model,
