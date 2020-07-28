@@ -2,7 +2,8 @@
 import os
 
 import cv2
-
+import open3d as o3d  # 必须声明在torch前
+__all__ = [o3d]
 import torch
 import os.path
 import numpy as np
@@ -15,8 +16,7 @@ import yaml
 from cv2 import imshow, waitKey
 import json
 
-# import open3d as o3d
-# __all__ = [o3d]
+
 
 
 DEBUG = False
@@ -28,7 +28,7 @@ class LM_O_Dataset():
 
         # self.config = Config(dataset_name='linemod', cls_type=cls_type)
         self.bs_utils = Basic_Utils()
-        self.n_sample_points = 10000
+        self.n_sample_points = 1228
 
         self.xmap = np.array([[j for i in range(640)] for j in range(480)])
         self.ymap = np.array([[i for i in range(640)] for j in range(480)])
@@ -197,15 +197,17 @@ class LM_O_Dataset():
     #     return n
 
     def get_normal(self, cld):
-        cldShape = cld.shape
-        normal = np.random.random(cldShape)
+        # cldShape = cld.shape
+        # normal = np.random.random(cldShape)
+        # return normal
+        cloud = o3d.geometry.PointCloud()
+        cld = cld.astype(np.float32)
+        cloud.points = o3d.utility.Vector3dVector(cld)
+        o3d.geometry.estimate_normals(cloud,
+                                     search_param=o3d.geometry.KDTreeSearchParamKNN(50))
+        normal = np.asarray(cloud.normals)
+
         return normal
-        # cloud = o3d.geometry.PointCloud()
-        # cld = cld.astype(np.float32)
-        # cloud.points = o3d.utility.Vector3dVector(cld)
-        # o3d.geometry.estimate_normals(cloud,
-        #                              search_param=o3d.geometry.KDTreeSearchParamKNN(50))
-        # print(cloud.normals)
 
     def add_real_back(self, rgb, labels, dpt, dpt_msk):
         real_item = self.real_gen()
@@ -347,14 +349,8 @@ class LM_O_Dataset():
                    torch.from_numpy(cld.astype(np.float32)), \
                    torch.from_numpy(cld_rgb_nrm.astype(np.float32)), \
                    torch.LongTensor(choose.astype(np.int32)), \
-                   torch.from_numpy(kp_targ_ofst.astype(np.float32)), \
-                   torch.from_numpy(ctr_targ_ofst.astype(np.float32)), \
                    torch.LongTensor(cls_ids.astype(np.int32)), \
-                   torch.from_numpy(RTs.astype(np.float32)), \
                    torch.LongTensor(labels.astype(np.int32)), \
-                   torch.from_numpy(kp3ds.astype(np.float32)), \
-                   torch.from_numpy(ctr3ds.astype(np.float32)), \
-                   torch.from_numpy(K.astype(np.float32)), \
                    torch.from_numpy(np.array(cam_scale).astype(np.float32))
 
         # choose: 降采样后的点对应的原深度图上的索引
@@ -380,9 +376,9 @@ class LM_O_Dataset():
 def main():
     # self.config.mini_batch_size = 1
     global DEBUG
-    cls = "ape"  # 1
+    cls = "1"  # 1
     DEBUG = True
-    dataListPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/lm-o/train_pbr/trainList_1.txt'
+    dataListPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/train_pbr/trainListSplit_1.txt'
 
     ds = LM_O_Dataset(dataListPath, cls)
     idx = dict(
@@ -397,28 +393,27 @@ def main():
             bs_utils = ds.bs_utils
 
             datum = [item.numpy() for item in datum]
-            rgb, pcld, cld_rgb_nrm, choose, kp_targ_ofst, \
-            ctr_targ_ofst, cls_ids, RTs, labels, kp3ds, \
-            ctr3ds, K, cam_scale = datum
+            rgb, pcld, cld_rgb_nrm, choose,  cls_ids, labels, cam_scale = datum
             nrm_map = bs_utils.get_normal_map(cld_rgb_nrm[:, 6:], choose[0])
             imshow('nrm_map', nrm_map)
-            rgb = rgb.transpose(1, 2, 0)  # [...,::-1].copy()
-            for i in range(22):
-                p2ds = bs_utils.project_p3d(pcld, cam_scale, K)
-                # rgb = self.bs_utils.draw_p2ds(rgb, p2ds)
-                kp3d = kp3ds[i]
-                if kp3d.sum() < 1e-6:
-                    break
-                kp_2ds = bs_utils.project_p3d(kp3d, cam_scale, K)
-                rgb = bs_utils.draw_p2ds(
-                    rgb, kp_2ds, 3, (0, 0, 255)  # bs_utils.get_label_color(cls_ids[i], mode=1)
-                )
-                ctr3d = ctr3ds[i]
-                ctr_2ds = bs_utils.project_p3d(ctr3d[None, :], cam_scale, K)
-                rgb = bs_utils.draw_p2ds(
-                    rgb, ctr_2ds, 4, (255, 0, 0)  # bs_utils.get_label_color(cls_ids[i], mode=1)
-                )
-            imshow('{}_rgb'.format(cls), rgb)
+            rgb1 = rgb.transpose(1, 2, 0)  # [...,::-1].copy()
+            # for i in range(22):
+            #     p2ds = bs_utils.project_p3d(pcld, cam_scale, K)
+            #     # rgb = self.bs_utils.draw_p2ds(rgb, p2ds)
+            #     kp3d = kp3ds[i]
+            #     if kp3d.sum() < 1e-6:
+            #         break
+            #     kp_2ds = bs_utils.project_p3d(kp3d, cam_scale, K)
+            #     rgb = bs_utils.draw_p2ds(
+            #         rgb, kp_2ds, 3, (0, 0, 255)  # bs_utils.get_label_color(cls_ids[i], mode=1)
+            #     )
+            #     ctr3d = ctr3ds[i]
+            #     ctr_2ds = bs_utils.project_p3d(ctr3d[None, :], cam_scale, K)
+            #     rgb = bs_utils.draw_p2ds(
+            #         rgb, ctr_2ds, 4, (255, 0, 0)  # bs_utils.get_label_color(cls_ids[i], mode=1)
+            #     )
+            imshow('{}_rgb'.format(cls), rgb1)
+            cv2.imwrite("/home/yumi/Desktop/SampleDate/lmo_rgb.jpg", rgb1)
             cmd = waitKey(0)
             if cmd == ord('q'):
                 exit()
