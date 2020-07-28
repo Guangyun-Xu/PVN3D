@@ -2,9 +2,10 @@
 import os
 
 import cv2
+
+import torch
 import open3d as o3d  # 必须声明在torch前
 __all__ = [o3d]
-import torch
 import os.path
 import numpy as np
 import torchvision.transforms as transforms
@@ -15,6 +16,8 @@ from pvn3d.lib.utils.basic_utils import Basic_Utils
 import yaml
 from cv2 import imshow, waitKey
 import json
+# print(torch._C._GLIBCXX_USE_CXX11_ABI)
+# print(o3d.open3d._GLIBCXX_USE_CXX11_ABI)
 
 
 
@@ -28,7 +31,7 @@ class LM_O_Dataset():
 
         # self.config = Config(dataset_name='linemod', cls_type=cls_type)
         self.bs_utils = Basic_Utils()
-        self.n_sample_points = 1228
+        self.n_sample_points = 10000
 
         self.xmap = np.array([[j for i in range(640)] for j in range(480)])
         self.ymap = np.array([[i for i in range(640)] for j in range(480)])
@@ -202,7 +205,8 @@ class LM_O_Dataset():
         # return normal
         cloud = o3d.geometry.PointCloud()
         cld = cld.astype(np.float32)
-        cloud.points = o3d.utility.Vector3dVector(cld)
+        cloud.points = o3d.Vector3dVector(cld)
+        # cloud.points = o3d.utility.Vector3dVector(cld)
         o3d.geometry.estimate_normals(cloud,
                                      search_param=o3d.geometry.KDTreeSearchParamKNN(50))
         normal = np.asarray(cloud.normals)

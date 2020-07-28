@@ -25,7 +25,7 @@ class LM_Dataset():
 
     def __init__(self, dataset_name, cls_type="duck"):
         self.config = Config(dataset_name='linemod', cls_type=cls_type)
-        self.bs_utils = Basic_Utils(self.config)
+        self.bs_utils = Basic_Utils()
         self.dataset_name = dataset_name
         self.xmap = np.array([[j for i in range(640)] for j in range(480)])
         self.ymap = np.array([[i for i in range(640)] for j in range(480)])
