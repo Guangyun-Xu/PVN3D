@@ -298,14 +298,14 @@ class PVN3D(nn.Module):
         rgbd_feature = self.rgbd_feat(rgb_emb, pcld_emb)
 
         pred_rgbd_seg = self.SEG_layer(rgbd_feature).transpose(1, 2).contiguous()
-        pred_kp_of = self.KpOF_layer(rgbd_feature).view(
-            bs, self.num_kps, 3, N
-        )
+        # pred_kp_of = self.KpOF_layer(rgbd_feature).view(
+        #     bs, self.num_kps, 3, N
+        # )
         # return [bs, n_kps, n_pts, c]
         # pred_kp_of = pred_kp_of.permute(0, 1, 3, 2).contiguous()
-        pred_ctr_of = self.CtrOf_layer(rgbd_feature).view(
-            bs, 1, 3, N
-        )
+        # pred_ctr_of = self.CtrOf_layer(rgbd_feature).view(
+        #     bs, 1, 3, N
+        # )
         # pred_ctr_of = pred_ctr_of.permute(0, 1, 3, 2).contiguous()
 
         return pred_rgbd_seg
