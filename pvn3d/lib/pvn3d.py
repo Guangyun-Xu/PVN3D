@@ -302,13 +302,13 @@ class PVN3D(nn.Module):
             bs, self.num_kps, 3, N
         )
         # return [bs, n_kps, n_pts, c]
-        pred_kp_of = pred_kp_of.permute(0, 1, 3, 2).contiguous()
+        # pred_kp_of = pred_kp_of.permute(0, 1, 3, 2).contiguous()
         pred_ctr_of = self.CtrOf_layer(rgbd_feature).view(
             bs, 1, 3, N
         )
-        pred_ctr_of = pred_ctr_of.permute(0, 1, 3, 2).contiguous()
+        # pred_ctr_of = pred_ctr_of.permute(0, 1, 3, 2).contiguous()
 
-        return pred_kp_of, pred_rgbd_seg, pred_ctr_of
+        return pred_rgbd_seg
 
 
 if __name__ == "__main__":

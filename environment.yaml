@@ -40,6 +40,7 @@ dependencies:
   - hdf5=1.10.4=nompi_h3c11f04_1106
   - hicolor-icon-theme=0.17=0
   - icu=58.2=hf484d3e_1000
+  - imageio=2.5.0=py36_0
   - ipython=7.16.1=py36h95af2a2_0
   - ipython_genutils=0.2.0=py_1
   - jedi=0.17.1=py36h9f0ad1d_0
@@ -54,6 +55,7 @@ dependencies:
   - libgfortran-ng=7.5.0=hdf63c60_6
   - libiconv=1.15=h516909a_1006
   - libpng=1.6.37=hed695b0_1
+  - libsodium=1.0.17=h516909a_0
   - libstdcxx-ng=9.2.0=hdf63c60_2
   - libtiff=4.1.0=hc7e4089_6
   - libuuid=2.32.1=h14c3975_1000
@@ -88,6 +90,7 @@ dependencies:
   - ptyprocess=0.6.0=py_1001
   - pycparser=2.20=pyh9f0ad1d_2
   - pygments=2.6.1=py_0
+  - pyopengl=3.1.0=py36_0
   - pyparsing=2.4.7=pyh9f0ad1d_0
   - pyqt=5.9.2=py36hcca6a23_4
   - python=3.6.10=hcf32534_1
@@ -96,6 +99,7 @@ dependencies:
   - pytorch=1.0.1=py3.6_cuda10.0.130_cudnn7.4.2_2
   - pytz=2020.1=pyh9f0ad1d_0
   - pyyaml=5.3.1=py36h7b6447c_0
+  - pyzmq=19.0.1=py36h9947dbf_0
   - qt=5.9.7=h52cfd70_2
   - readline=8.0=h7b6447c_0
   - scipy=1.2.1=py36h7c811a0_0
@@ -123,6 +127,7 @@ dependencies:
   - xorg-xproto=7.0.31=h14c3975_1007
   - xz=5.2.5=h516909a_0
   - yaml=0.1.7=had09818_2
+  - zeromq=4.3.2=he1b5a44_2
   - zlib=1.2.11=h516909a_1006
   - zstd=1.4.4=h6597ccf_3
   - pip:
@@ -145,21 +150,23 @@ dependencies:
     - nbformat==5.0.7
     - notebook==6.0.3
     - numpy==1.18.5
-    - open3d==0.9.0.0
+    - open3d-python==0.7.0.0
     - opencv-python==4.2.0.34
     - packaging==20.4
     - pandocfilters==1.4.2
     - plyfile==0.7.2
     - prometheus-client==0.8.0
+    - pypng==0.0.20
     - pyrsistent==0.16.0
-    - pyzmq==19.0.1
     - scikit-learn==0.23.1
     - send2trash==1.5.0
     - sklearn==0.0
     - terminado==0.8.3
     - testpath==0.4.4
     - threadpoolctl==2.1.0
+    - triangle==20200424
     - webencodings==0.5.1
     - widgetsnbextension==3.5.1
     - zipp==3.1.0
 prefix: /home/yumi/anaconda3/envs/PVN3D
+

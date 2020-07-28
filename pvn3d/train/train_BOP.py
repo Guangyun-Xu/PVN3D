@@ -5,6 +5,13 @@ from __future__ import (
     print_function,
     unicode_literals,
 )
+import open3d as o3d  # 必须声明在torch前
+__all__ = [o3d]
+import os
+import sys
+sys.path.insert(0, '/home/yumi/Project/6D_pose_estmation/PVN3D/pvn3d')
+# os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+
 import torch
 print(torch.__version__)
 import torch.optim as optim
@@ -14,9 +21,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 import pprint
 import os.path as osp
-import os
-import sys
-sys.path.insert(0, '/home/yumi/Project/6D_pose_estmation/PVN3D/pvn3d')
+
 print(sys.path)
 import argparse
 import time
@@ -190,7 +195,7 @@ def model_fn_decorator(
             rgb, pcld, cld_rgb_nrm, choose, \
                 cls_ids, labels = cu_dt
 
-            pred_kp_of, pred_rgbd_seg, pred_ctr_of = model(
+            pred_rgbd_seg = model(
                 cld_rgb_nrm, rgb, choose
             )
 
@@ -204,7 +209,7 @@ def model_fn_decorator(
             # loss_ctr_of = criterion_of(
             #     pred_ctr_of, ctr_targ_ofst, labels,
             # ).sum()
-            w = [2.0, 1.0, 1.0]
+            # w = [2.0, 1.0, 1.0]
             loss = loss_rgbd_seg
 
             _, classes_rgbd = torch.max(pred_rgbd_seg, -1)
@@ -221,7 +226,7 @@ def model_fn_decorator(
                 )
 
         return modelreturn(
-            (pred_kp_of, pred_rgbd_seg, pred_ctr_of), loss,
+            (pred_rgbd_seg), loss,
             {
                 "acc_rgbd": acc_rgbd.item(),
                 "loss": loss.item(),
@@ -441,7 +446,7 @@ class Trainer(object):
 
 if __name__ == "__main__":
     cls_id = '1'
-    trainDataPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/train_pbr/trainList_1.txt'
+    trainDataPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/train_pbr/trainListSplit_1.txt'
     validDataPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/BOP_test19-20/validList_1.txt'
     print("cls_id: ", cls_id)
     if not args.eval_net:
@@ -476,7 +481,7 @@ if __name__ == "__main__":
     model = PVN3D(
         num_classes=config.n_classes, pcld_input_channels=6, pcld_use_xyz=True,
         num_points=config.n_sample_points
-    ).cuda()
+    )
     model = convert_model(model)
     model.cuda()
 
