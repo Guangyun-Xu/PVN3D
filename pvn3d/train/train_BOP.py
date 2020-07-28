@@ -5,12 +5,13 @@ from __future__ import (
     print_function,
     unicode_literals,
 )
-import open3d as o3d  # 必须声明在torch前
-__all__ = [o3d]
 import os
 import sys
 sys.path.insert(0, '/home/yumi/Project/6D_pose_estmation/PVN3D/pvn3d')
-# os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+# import open3d as o3d  # 必须声明在torch前
+# __all__ = [o3d]
+
 
 import torch
 print(torch.__version__)
@@ -127,7 +128,7 @@ def worker_init_fn(worker_id):
 def checkpoint_state(model=None, optimizer=None, best_prec=None, epoch=None, it=None):
     optim_state = optimizer.state_dict() if optimizer is not None else None
     if model is not None:
-        if isinstance(model, torch.nn.DataParallel):
+        if isinstance(model):
             model_state = model.module.state_dict()
         else:
             model_state = model.state_dict()
@@ -176,7 +177,7 @@ def load_checkpoint(model=None, optimizer=None, filename="checkpoint"):
 
 
 def model_fn_decorator(
-    criterion, criterion_of, test=False
+    criterion
 ):
     modelreturn = namedtuple("modelreturn", ["preds", "loss", "acc"])
     teval = TorchEval()
@@ -191,7 +192,7 @@ def model_fn_decorator(
         if is_eval:
             model.eval()
         with torch.set_grad_enabled(not is_eval):
-            cu_dt = [item.to("cuda", non_blocking=True) for item in data]
+            cu_dt = [item.to("cuda", non_blocking=True) for item in data]  # non_blocking=True
             rgb, pcld, cld_rgb_nrm, choose, \
                 cls_ids, labels = cu_dt
 
@@ -199,9 +200,11 @@ def model_fn_decorator(
                 cld_rgb_nrm, rgb, choose
             )
 
+            inputPred = pred_rgbd_seg.view(labels.numel(), -1)
+            target = labels.view(-1)
             loss_rgbd_seg = criterion(
-                pred_rgbd_seg.view(labels.numel(), -1),
-                labels.view(-1)
+                inputPred,
+                target
             ).sum()
             # loss_kp_of = criterion_of(
             #     pred_kp_of, kp_targ_ofst, labels,
@@ -479,11 +482,11 @@ if __name__ == "__main__":
             )
 
     model = PVN3D(
-        num_classes=config.n_classes, pcld_input_channels=6, pcld_use_xyz=True,
+        num_classes=2, pcld_input_channels=6, pcld_use_xyz=True,
         num_points=config.n_sample_points
-    )
-    model = convert_model(model)
-    model.cuda()
+    ).cuda()
+    # model = convert_model(model)
+    # model.cuda()
 
     optimizer = optim.Adam(
         model.parameters(), lr=args.lr, weight_decay=args.weight_decay
@@ -505,9 +508,9 @@ if __name__ == "__main__":
         if checkpoint_status is not None:
             it, start_epoch, best_loss = checkpoint_status
 
-    model = nn.DataParallel(
-        model, device_ids=[0]
-    )
+    # model = nn.DataParallel(
+    #     model
+    # )
 
     # 学习率变化策略
     lr_scheduler = CyclicLR(
@@ -527,11 +530,12 @@ if __name__ == "__main__":
 
     it = max(it, 0)  # for the initialize value of `trainer.train`
 
-    model_fn = model_fn_decorator(
-        nn.DataParallel(FocalLoss(gamma=2)),
-        nn.DataParallel(OFLoss()),
-        args.test,
-    )
+    # model_fn = model_fn_decorator(
+    #     nn.DataParallel(FocalLoss(gamma=2)),
+    #     nn.DataParallel(OFLoss()),
+    #     args.test,
+    # )
+    model_fn = model_fn_decorator(FocalLoss(gamma=2))
 
     viz = CmdLineViz()
 
