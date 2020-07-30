@@ -242,11 +242,13 @@ class LM_O_Dataset():
     def get_item(self, item_name):
         words = item_name.split()
         folderName = words[0]
-        rgbName = depthName = sceneId = words[1]
-        segName = words[2]
-        depthPath = os.path.join(folderName, "depth/{}.png".format(depthName))
-        rgbPath = os.path.join(folderName, "rgb/{}.jpg".format(rgbName))
-        segPath = os.path.join(folderName, "mask_visib/{}.png".format(segName))
+        rgbName = words[1]
+        sceneId = rgbName[:-4]
+        depthName = words[2]
+        segName = words[3]
+        depthPath = os.path.join(folderName, "depth/{}".format(depthName))
+        rgbPath = os.path.join(folderName, "rgb/{}".format(rgbName))
+        segPath = os.path.join(folderName, "mask_visib/{}".format(segName))
 
         with Image.open(depthPath) as di:
             dpt = np.array(di)
