@@ -388,7 +388,11 @@ class Basic_Utils():
     def dpt_2_cld(self, dpt, cam_scale, K):
         if len(dpt.shape) > 2:
             dpt = dpt[:, :, 0]
-        msk_dp = dpt > 1e-6
+        max_dp = 1.5  # m
+        min_dp = 0.1  # m
+        msk_dp_min = dpt > (min_dp*cam_scale)
+        msk_dp_max = dpt < (max_dp*cam_scale)
+        msk_dp = msk_dp_max & msk_dp_min
         choose = msk_dp.flatten().nonzero()[0].astype(np.uint32)    # choose : 不为0的深度值的索引
         if len(choose) < 1:
             return None, None
