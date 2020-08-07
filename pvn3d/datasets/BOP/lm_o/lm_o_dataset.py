@@ -20,10 +20,7 @@ import json
 # print(o3d.open3d._GLIBCXX_USE_CXX11_ABI)
 
 
-
-
 DEBUG = False
-
 
 class LM_O_Dataset():
 
@@ -31,7 +28,7 @@ class LM_O_Dataset():
 
         # self.config = Config(dataset_name='linemod', cls_type=cls_type)
         self.bs_utils = Basic_Utils()
-        self.n_sample_points = 10000
+        self.n_sample_points = 20000
 
         self.xmap = np.array([[j for i in range(640)] for j in range(480)])
         self.ymap = np.array([[i for i in range(640)] for j in range(480)])
@@ -292,7 +289,9 @@ class LM_O_Dataset():
         choose_2 = np.array([i for i in range(len(choose[0, :]))])
 
         if len(choose_2) < 400:  # 如果场景中点云的数量过少,返回None
+            print("too faw points :{}".format(depthPath))
             return None
+
         if len(choose_2) > self.n_sample_points:
             c_mask = np.zeros(len(choose_2), dtype=int)
             c_mask[:self.n_sample_points] = 1
@@ -303,7 +302,7 @@ class LM_O_Dataset():
 
         cld_rgb = np.concatenate((cld, rgb_pt), axis=1)
         cld_rgb = cld_rgb[choose_2, :]
-        cld = cld[choose_2, :]
+        cld = cld[choose_2, :]  # 进行降采样
 
         normal = self.get_normal(cld)[:, :3]
         normal[np.isnan(normal)] = 0.0
@@ -326,13 +325,13 @@ class LM_O_Dataset():
             # ctr = self.bs_utils.get_ctr(self.cls_type, ds_type="linemod")[:, None]
             # ctr = np.dot(ctr.T, r.T) + t
             # ctr3ds[i, :] = ctr[0]
-            msk_idx = np.where(labels == cls_id)[0]
+            #msk_idx = np.where(labels == cls_id)[0]
 
-            target_offset = np.array(np.add(cld, -1.0 * ctr3ds[i, :]))
-            ctr_targ_ofst[msk_idx, :] = target_offset[msk_idx, :]
+            #target_offset = np.array(np.add(cld, -1.0 * ctr3ds[i, :]))
+            #ctr_targ_ofst[msk_idx, :] = target_offset[msk_idx, :]
             cls_ids[i, :] = np.array([1])
 
-            key_kpts = ''
+            # key_kpts = ''
             # if self.config.n_keypoints == 8:
             #     kp_type = 'farthest'
             # else:
@@ -343,7 +342,7 @@ class LM_O_Dataset():
             # kps = np.dot(kps, r.T) + t
             # kp3ds[i] = kps
 
-            target = []
+            #target = []
             # for kp in kps:
             #     target.append(np.add(cld, -1.0 * kp))
             # target_offset = np.array(target).transpose(1, 0, 2)  # [npts, nkps, c]
@@ -365,7 +364,7 @@ class LM_O_Dataset():
                torch.from_numpy(cld_rgb_nrm.astype(np.float32)), \
                torch.LongTensor(choose.astype(np.int32)), \
                torch.LongTensor(cls_ids.astype(np.int32)), \
-               torch.LongTensor(labels.astype(np.int32)), \
+               torch.LongTensor(labels.astype(np.int32))
 
 
     def __len__(self):
