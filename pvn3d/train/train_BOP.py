@@ -8,7 +8,7 @@ from __future__ import (
 import os
 import sys
 sys.path.insert(0, '/home/yumi/Project/6D_pose_estmation/PVN3D/pvn3d')
-os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+# os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 # import open3d as o3d  # 必须声明在torch前
 # __all__ = [o3d]
 
@@ -32,8 +32,9 @@ from pvn3d.lib.utils.etw_pytorch_utils.viz import *
 from pvn3d.lib import PVN3D
 #from pvn3d.datasets.linemod.linemod_dataset import LM_Dataset
 from pvn3d.datasets.BOP.lm_o.lm_o_dataset import LM_O_Dataset
+from pvn3d.datasets.BOP.BOP_dataset import BOPDataset
 from pvn3d.lib.loss import OFLoss, FocalLoss
-from pvn3d.common import Config
+from pvn3d.common_BOP import Config
 from pvn3d.lib.utils.sync_batchnorm import convert_model
 from pvn3d.lib.utils.warmup_scheduler import CyclicLR
 from pvn3d.lib.utils.pvn3d_eval_utils import TorchEval
@@ -116,7 +117,10 @@ parser.add_argument("--test", action="store_true")
 parser.add_argument("--cal_metrics", action="store_true")
 args = parser.parse_args()
 
-config = Config(dataset_name='linemod', cls_type=args.cls)
+trainDataPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/train_pbr/trainListSplit1000_8.txt'
+validDataPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/BOP_test19-20/validList_8.txt'
+
+config = Config(trainDataPath, validDataPath)
 lr_clip = 1e-5
 bnm_clip = 1e-2
 
@@ -128,7 +132,7 @@ def worker_init_fn(worker_id):
 def checkpoint_state(model=None, optimizer=None, best_prec=None, epoch=None, it=None):
     optim_state = optimizer.state_dict() if optimizer is not None else None
     if model is not None:
-        if isinstance(model):
+        if isinstance(model, torch.nn.DataParallel):
             model_state = model.module.state_dict()
         else:
             model_state = model.state_dict()
@@ -220,13 +224,7 @@ def model_fn_decorator(
                 classes_rgbd == labels
             ).float().sum() / labels.numel()
 
-            if is_test:
-                teval.eval_pose_parallel(
-                    pcld, rgb, classes_rgbd, pred_ctr_of, ctr_targ_ofst,
-                    labels, epoch, cls_ids, rts, pred_kp_of,
-                    min_cnt=1, use_p2d=False, use_ctr_clus_flter=False,
-                    use_ctr=True, ds_type="linemod", obj_id=obj_id
-                )
+
 
         return modelreturn(
             (pred_rgbd_seg), loss,
@@ -311,11 +309,7 @@ class Trainer(object):
             for k, v in eval_res.items():
                 if v is not None:
                     eval_dict[k] = eval_dict.get(k, []) + [v]
-        if is_test:
-            self.model_fn(
-                self.model, data, is_eval=True, is_test=is_test, finish_test=True,
-                obj_id=obj_id
-            )
+
 
         return total_loss / count, eval_dict
 
@@ -403,12 +397,16 @@ class Trainer(object):
                     pbar.update()
                     pbar.set_postfix(dict(total_it=it))
                     tbar.refresh()
+                    torch.cuda.empty_cache()  # 清理cuda缓存
 
                     if self.viz is not None:
                         self.viz.update("train", it, res)
 
                     eval_flag, eval_frequency = is_to_eval(epoch, it)
                     if eval_flag:
+                        # 清空cuda的内存
+                        torch.cuda.empty_cache()
+
                         pbar.close()
 
                         if test_loader is not None:
@@ -427,7 +425,7 @@ class Trainer(object):
                                 filename=self.checkpoint_name,
                                 bestname=self.best_name +'_%.4f'% val_loss,
                                 bestname_pure=self.best_name,
-                            )
+                            )   #
                             info_p = self.checkpoint_name.replace(
                                 '.pth.tar','_epoch.txt'
                             )
@@ -448,38 +446,24 @@ class Trainer(object):
 
 
 if __name__ == "__main__":
-    cls_id = '1'
-    trainDataPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/train_pbr/trainListSplit_1.txt'
-    validDataPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/BOP_test19-20/validList_1.txt'
+    cls_id = '8'
     print("cls_id: ", cls_id)
     if not args.eval_net:
         # 初始化DataLoader,使得DataLoader拥有训练数据的信息
         # 指定物体的种类,从而获得对应的元数据(主要是相机参数)
         # train_ds = LM_Dataset('train', cls_type=args.cls)
-        train_ds = LM_O_Dataset(trainDataPath, cls_id)
+        train_ds = BOPDataset(trainDataPath, cls_id)
         train_loader = torch.utils.data.DataLoader(
             train_ds, batch_size=config.mini_batch_size, shuffle=True,
             num_workers=6, worker_init_fn=worker_init_fn
         )  # num_workers:
 
-        val_ds = LM_O_Dataset(validDataPath, cls_id)
+
+        val_ds = BOPDataset(validDataPath, cls_id)
         val_loader = torch.utils.data.DataLoader(
-            val_ds, batch_size=config.val_mini_batch_size, shuffle=False,
+            val_ds, batch_size=config.test_mini_batch_size, shuffle=False,
             num_workers=6
         )
-    else:
-        if args.test_occ:
-            test_ds = LM_O_Dataset('test', cls_type=args.cls)
-            test_loader = torch.utils.data.DataLoader(
-                test_ds, batch_size=config.test_mini_batch_size, shuffle=False,
-                num_workers=10
-            )
-        else:
-            test_ds = LM_O_Dataset('test', cls_type=args.cls)
-            test_loader = torch.utils.data.DataLoader(
-                test_ds, batch_size=config.test_mini_batch_size, shuffle=False,
-                num_workers=10
-            )
 
     model = PVN3D(
         num_classes=2, pcld_input_channels=6, pcld_use_xyz=True,
@@ -497,7 +481,7 @@ if __name__ == "__main__":
     best_loss = 1e10
     start_epoch = 1
 
-    cur_mdl_pth = os.path.join(config.log_model_dir, 'pvn3d.pth.tar')
+    cur_mdl_pth = os.path.join(config.log_model_dir, cls_id, 'pvn3d.pth.tar')
     if args.checkpoint is None and os.path.exists(cur_mdl_pth):
         args.checkpoint = cur_mdl_pth
     # load status from checkpoint
@@ -547,28 +531,18 @@ if __name__ == "__main__":
         model,
         model_fn,
         optimizer,
-        checkpoint_name = os.path.join(checkpoint_fd, "{}_pvn3d".format(args.cls)),
-        best_name = os.path.join(checkpoint_fd, "{}_pvn3d_best".format(args.cls)),
+        checkpoint_name = os.path.join(checkpoint_fd, "{}_pvn3d".format(cls_id)),
+        best_name = os.path.join(checkpoint_fd, "{}_pvn3d_best".format(cls_id)),
         lr_scheduler = lr_scheduler,
         bnm_scheduler = bnm_scheduler,
         viz = viz,
     )
 
-    if args.eval_net:
-        start = time.time()
-        val_loss, res = trainer.eval_epoch(
-            test_loader, is_test=True, obj_id=test_ds.cls_id
-        )
-        if viz is not None:
-            viz.update("val", it, res)
-        end = time.time()
-        viz.flush()
-        print("\nUse time: ", end - start, 's')
-    else:
-        trainer.train(
-            it, start_epoch, config.n_total_epoch, train_loader, val_loader,
-            best_loss=best_loss
-        )  # it: 已进行的迭代次数,没有预训练模型时为-1
 
-        if start_epoch == config.n_total_epoch:
-            _ = trainer.eval_epoch(val_loader)
+    trainer.train(
+        it, start_epoch, config.n_total_epoch, train_loader, val_loader,
+        best_loss=best_loss
+    )  # it: 已进行的迭代次数,没有预训练模型时为-1
+
+    if start_epoch == config.n_total_epoch:
+        _ = trainer.eval_epoch(val_loader)
