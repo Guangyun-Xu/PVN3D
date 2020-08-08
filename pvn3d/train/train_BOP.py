@@ -117,8 +117,8 @@ parser.add_argument("--test", action="store_true")
 parser.add_argument("--cal_metrics", action="store_true")
 args = parser.parse_args()
 
-trainDataPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/train_pbr/trainListSplit10000_8.txt'
-validDataPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/BOP_test19-20/validList_8.txt'
+trainDataPath = '../datasets/BOP/BOP_Dataset/LM-O/train_pbr/trainListSplit10000_8.txt'
+validDataPath = '../datasets/BOP/BOP_Dataset/LM-O/BOP_test19-20/validList_8.txt'
 
 config = Config(trainDataPath, validDataPath)
 lr_clip = 1e-5
@@ -525,7 +525,7 @@ if __name__ == "__main__":
 
     viz.text(pprint.pformat(vars(args)))
 
-    checkpoint_fd = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/checkPoint'
+    checkpoint_fd = '../datasets/BOP/BOP_Dataset/LM-O/checkPoint'
 
     trainer = Trainer(
         model,

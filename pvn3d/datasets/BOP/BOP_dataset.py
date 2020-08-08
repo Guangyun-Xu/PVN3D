@@ -13,8 +13,8 @@ from PIL import Image
 import matplotlib.pyplot as plt
 
 
-import time
 
+import time
 
 
 
@@ -107,19 +107,26 @@ class BOPDataset():
             n_pcd_dow = n_points
             minus_idx = np.random.choice(n_pcd_dow, n_minus, replace=False)
             pcd_down = o3d.select_down_sample(pcd_down, minus_idx, True)
+            return pcd_down
         elif n_points < n_sample_points:
             n_add = n_sample_points - n_points
-
-            # select unsampled points
             n_cuted_points = len(src.points)
-            unsample_points = o3d.select_down_sample(src, max_idx_in_row, True)
             n_unsample_points = n_cuted_points - max_idx_in_row.shape[0]
-            add_idx = np.random.choice(n_unsample_points, n_add, replace=False)
-            add_points = o3d.select_down_sample(unsample_points, add_idx)
-            pcd_down += add_points
+            if n_add < n_unsample_points:
+                # select unsampled points
+
+                unsample_points = o3d.select_down_sample(src, max_idx_in_row, True)
+
+                add_idx = np.random.choice(n_unsample_points, n_add, replace=False)
+                add_points = o3d.select_down_sample(unsample_points, add_idx)
+                pcd_down += add_points
+                return pcd_down
+            else:
+                return None
+
         else:
-            pass
-        return pcd_down
+            return pcd_down
+
 
 
 
@@ -225,83 +232,107 @@ class BOPDataset():
 
     # 接收一个索引,然后返回用于训练的数据和标签
     def __getitem__(self, idx):  # 调用函数实例时传入
-        # print("load {}th data...".format(idx))
+        print("load {}th data...".format(idx))
         item_name = self.data_list[idx]
         data = self.get_item(item_name)
         while data is None:
-            # print("to few points:{}".format(idx))
+            print("to few points:{}".format(idx))
             idx = np.random.randint(0, len(self.data_list))
             item_name = self.data_list[idx]
-            # print("replaced by :{}".format(idx))
+            print("replaced by :{}".format(idx))
             data = self.get_item(item_name)
         return data
 
 def main():
     cls = "8"
     show = False
+    test_all = True
+    test_range = 0
+    pre_processing = True
+
     # dataListPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/BOP_test19-20/validList_8.txt'
-    dataListPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/train_pbr/trainListSplit1000_8.txt'
+    dataListPath = '../BOP_Dataste/LM-O/train_pbr/trainListSplit10000_8.txt'
+
+    config = Config(dataListPath, dataListPath)
 
     ds = BOPDataset(dataListPath, cls)
+    ds_loader = torch.utils.data.DataLoader(
+        ds, batch_size=8, shuffle=False,
+        num_workers=6
+    )
     time_start = time.clock()
-    for i in range(39, 1000):
-        data = ds.__getitem__(i)
-        if data:
-            data = [item.numpy() for item in data]
+
+    # 没有预处理数据集的情况下,评估数据加载程序
+    if test_all:
+        for ibs, batch in enumerate(ds_loader):
+            data = [item.numpy() for item in batch]
             rgb, pcd_down, cld_rgb_nrm, choose, cls_ids, labels = data
-            # n = pcd_down.size()
-            # print(n)
-            if show:
-                # 显示rgb
-                rgb1 = rgb.transpose(1, 2, 0) / 255
-                plt.figure("rgb")
-                plt.imshow(rgb1)
-                plt.title("rgb")
-                plt.show()
 
-                # 显示法线
-                nrm_map = ds.bs_utils.get_normal_map(cld_rgb_nrm[:, 6:], choose[0])
+    if test_range:
+        for i in range(test_range):
+            data = ds.__getitem__(i)
+            if data:
+                data = [item.numpy() for item in data]
+                rgb, pcd_down, cld_rgb_nrm, choose, cls_ids, labels = data
+                # n = pcd_down.size()
+                # print(n)
+                if show:
+                    # 显示rgb
+                    rgb1 = rgb.transpose(1, 2, 0) / 255
+                    plt.figure("rgb")
+                    plt.imshow(rgb1)
+                    plt.title("rgb")
+                    plt.show()
 
-                plt.figure("nrm_map")
-                plt.imshow(nrm_map)
-                plt.title("nrm_map")
-                plt.show()
+                    # 显示法线
+                    nrm_map = ds.bs_utils.get_normal_map(cld_rgb_nrm[:, 6:], choose[0])
 
-                # 显示rgb_point_map
-                rgb_point_map = ds.bs_utils.get_rgb_pts_map(
-                    cld_rgb_nrm[:, 3:6], choose[0])
-                plt.figure("rgb_point_map")
-                plt.imshow(rgb_point_map)
-                plt.title("rgb_point_map")
-                plt.show()
+                    plt.figure("nrm_map")
+                    plt.imshow(nrm_map)
+                    plt.title("nrm_map")
+                    plt.show()
 
-                # 显示点云 和 颜色 和 label
-                pcd = o3d.geometry.PointCloud()
-                pcd.points = o3d.Vector3dVector(cld_rgb_nrm[:, 0:3])
-                color = cld_rgb_nrm[:, 3:6] / 255
-                # color[:, [0, 2]] = color[:, [2, 0]]
-                pcd.colors = o3d.Vector3dVector(color[:, ::-1])
-                pcd.normals = o3d.Vector3dVector(cld_rgb_nrm[:, 6:])
-                print(pcd)
-                pcd_mask = labels.nonzero()
-                label_idx = pcd_mask[0].tolist()
-                target_pcd = o3d.select_down_sample(pcd, label_idx)
-                target_pcd.paint_uniform_color([0, 255, 0])
-                pcd = o3d.select_down_sample(pcd, label_idx, True)
-                o3d.visualization.draw_geometries([pcd, target_pcd])
+                    # 显示rgb_point_map
+                    rgb_point_map = ds.bs_utils.get_rgb_pts_map(
+                        cld_rgb_nrm[:, 3:6], choose[0])
+                    plt.figure("rgb_point_map")
+                    plt.imshow(rgb_point_map)
+                    plt.title("rgb_point_map")
+                    plt.show()
+
+                    # 显示点云 和 颜色 和 label
+                    pcd = o3d.geometry.PointCloud()
+                    pcd.points = o3d.Vector3dVector(cld_rgb_nrm[:, 0:3])
+                    color = cld_rgb_nrm[:, 3:6] / 255
+                    # color[:, [0, 2]] = color[:, [2, 0]]
+                    pcd.colors = o3d.Vector3dVector(color[:, ::-1])
+                    pcd.normals = o3d.Vector3dVector(cld_rgb_nrm[:, 6:])
+                    print(pcd)
+                    pcd_mask = labels.nonzero()
+                    label_idx = pcd_mask[0].tolist()
+                    target_pcd = o3d.select_down_sample(pcd, label_idx)
+                    target_pcd.paint_uniform_color([0, 255, 0])
+                    pcd = o3d.select_down_sample(pcd, label_idx, True)
+                    o3d.visualization.draw_geometries([pcd, target_pcd])
+
+                print(i)
+            else:
+                print("{} data is None".format(i))
+
+    if pre_processing:
+        for ibs, batch in enumerate(ds_loader):
+            data = [item.numpy() for item in batch]
+            rgb, pcd_down, cld_rgb_nrm, choose, cls_ids, labels = data
+            #  保存cld_rgb_nrm
+            cld_rgb_nrm = o3d.geometry.PointCloud()
+            cld_rgb_nrm.points = o3d.Vector3dVector(cld_rgb_nrm[:, 0:3])
+            color = cld_rgb_nrm[:, 3:6]
+            cld_rgb_nrm.colors = o3d.Vector3dVector(color)
+            cld_rgb_nrm.normals = o3d.Vector3dVector(cld_rgb_nrm[:, 6:])
 
 
 
 
-
-
-
-
-
-
-            print(i)
-        else:
-            print("{} data is None".format(i))
     time_end = time.clock()
     print("time:{}".format(time_end - time_start))
 
