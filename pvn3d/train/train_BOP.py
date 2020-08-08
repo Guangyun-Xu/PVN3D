@@ -117,7 +117,7 @@ parser.add_argument("--test", action="store_true")
 parser.add_argument("--cal_metrics", action="store_true")
 args = parser.parse_args()
 
-trainDataPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/train_pbr/trainListSplit1000_8.txt'
+trainDataPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/train_pbr/trainListSplit10000_8.txt'
 validDataPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/BOP_test19-20/validList_8.txt'
 
 config = Config(trainDataPath, validDataPath)
@@ -455,8 +455,8 @@ if __name__ == "__main__":
         train_ds = BOPDataset(trainDataPath, cls_id)
         train_loader = torch.utils.data.DataLoader(
             train_ds, batch_size=config.mini_batch_size, shuffle=True,
-            num_workers=6, worker_init_fn=worker_init_fn
-        )  # num_workers:
+            num_workers=6
+        )  # num_workers:加载数据的进程数
 
 
         val_ds = BOPDataset(validDataPath, cls_id)
@@ -468,7 +468,7 @@ if __name__ == "__main__":
     model = PVN3D(
         num_classes=2, pcld_input_channels=6, pcld_use_xyz=True,
         num_points=config.n_sample_points
-    ).cuda()
+    ).cuda(0)
     # model = convert_model(model)
     # model.cuda()
 
