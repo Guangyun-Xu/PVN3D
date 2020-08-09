@@ -117,10 +117,7 @@ parser.add_argument("--test", action="store_true")
 parser.add_argument("--cal_metrics", action="store_true")
 args = parser.parse_args()
 
-trainDataPath = '../datasets/BOP/BOP_Dataset/LM-O/train_pbr/trainListSplit500_5.txt'
-validDataPath = '../datasets/BOP/BOP_Dataset/LM-O/BOP_test19-20/validList_8.txt'
 
-config = Config(trainDataPath, validDataPath)
 lr_clip = 1e-5
 bnm_clip = 1e-2
 
@@ -448,7 +445,12 @@ class Trainer(object):
 
 if __name__ == "__main__":
     cls_id = '5'
+    n_data = 500
     print("cls_id: ", cls_id)
+    trainDataPath = '../datasets/BOP/BOP_Dataset/LM-O/train_pbr/trainListSplit{}_{}.txt'.format(n_data, cls_id)
+    validDataPath = '../datasets/BOP/BOP_Dataset/LM-O/BOP_test19-20/validList_{}.txt'.format(cls_id)
+    config = Config(trainDataPath, validDataPath)
+    device_id = 3
     if not args.eval_net:
         # 初始化DataLoader,使得DataLoader拥有训练数据的信息
         # 指定物体的种类,从而获得对应的元数据(主要是相机参数)
@@ -469,7 +471,7 @@ if __name__ == "__main__":
     model = PVN3D(
         num_classes=2, pcld_input_channels=6, pcld_use_xyz=True,
         num_points=config.n_sample_points
-    ).cuda(0)
+    ).cuda(device_id)
     # model = convert_model(model)
     # model.cuda()
 
