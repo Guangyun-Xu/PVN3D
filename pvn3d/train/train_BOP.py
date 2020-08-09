@@ -117,7 +117,7 @@ parser.add_argument("--test", action="store_true")
 parser.add_argument("--cal_metrics", action="store_true")
 args = parser.parse_args()
 
-trainDataPath = '../datasets/BOP/BOP_Dataset/LM-O/train_pbr/trainListSplit10000_8.txt'
+trainDataPath = '../datasets/BOP/BOP_Dataset/LM-O/train_pbr/trainListSplit500_5.txt'
 validDataPath = '../datasets/BOP/BOP_Dataset/LM-O/BOP_test19-20/validList_8.txt'
 
 config = Config(trainDataPath, validDataPath)
@@ -446,7 +446,7 @@ class Trainer(object):
 
 
 if __name__ == "__main__":
-    cls_id = '8'
+    cls_id = '5'
     print("cls_id: ", cls_id)
     if not args.eval_net:
         # 初始化DataLoader,使得DataLoader拥有训练数据的信息

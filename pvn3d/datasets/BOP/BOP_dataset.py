@@ -244,14 +244,14 @@ class BOPDataset():
         return data
 
 def main():
-    cls = "8"
-    show = False
-    test_all = True
-    test_range = 0
-    pre_processing = True
+    cls = "5"
+    show = True
+    test_all = False
+    test_range = 10
+    pre_processing = False
 
     # dataListPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/BOP_test19-20/validList_8.txt'
-    dataListPath = '../BOP_Dataste/LM-O/train_pbr/trainListSplit10000_8.txt'
+    dataListPath = './BOP_Dataset/LM-O/train_pbr/trainListSplit100_{}.txt'.format(cls)
 
     config = Config(dataListPath, dataListPath)
 
@@ -279,6 +279,7 @@ def main():
                 if show:
                     # 显示rgb
                     rgb1 = rgb.transpose(1, 2, 0) / 255
+                    rgb1 = rgb1[:, :, ::-1]
                     plt.figure("rgb")
                     plt.imshow(rgb1)
                     plt.title("rgb")
