@@ -423,7 +423,7 @@ class Trainer(object):
                                     self.model, self.optimizer, val_loss, epoch, it
                                 ),
                                 is_best,
-                                filename="{}_ep{}".format(self.checkpoint_name, epoch),
+                                filename="{}_data{}_ep{}".format(self.checkpoint_name, config.n_train_frame, epoch),
                                 bestname=self.best_name +'_%.4f'% val_loss,
                                 bestname_pure=self.best_name,
                             )   #
