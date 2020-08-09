@@ -6,7 +6,7 @@ cls_id = 5
 trainPath = './BOP_Dataset/LM-O/train_pbr'
 testPath = './BOP_Dataset/LM-O/BOP_test19-20'
 splitTrainList = True
-n_splitTrainList = 500
+n_splitTrainList = 1000
 
 dataListPath = os.path.join(trainPath, 'dataList_{}.txt'.format(cls_id))
 trainListPath = os.path.join(trainPath, 'trainList_{}.txt'.format(cls_id))

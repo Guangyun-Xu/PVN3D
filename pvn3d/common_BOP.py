@@ -34,14 +34,14 @@ class Config(object):
 
         self.train_list = self.bs_utils.read_lines(train_list_dir)
         self.test_list = self.bs_utils.read_lines(test_list_dir)
-        n_train_frame = len(self.train_list)
-        n_test_frame = len(self.test_list)
+        self.n_train_frame = len(self.train_list)
+        self.n_test_frame = len(self.test_list)
 
         self.n_total_epoch =10
         self.mini_batch_size = 2
-        self.num_mini_batch_per_epoch = n_train_frame
+        self.num_mini_batch_per_epoch = self.n_train_frame
         self.val_mini_batch_size = 2
-        self.val_num_mini_batch_per_epoch = n_test_frame
+        self.val_num_mini_batch_per_epoch = self.n_test_frame
         self.test_mini_batch_size = 4
 
         self.voxel_size = 0.01  # 以米为单位
