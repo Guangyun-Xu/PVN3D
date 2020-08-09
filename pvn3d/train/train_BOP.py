@@ -417,12 +417,13 @@ class Trainer(object):
 
                             is_best = val_loss < best_loss
                             best_loss = min(best_loss, val_loss)
+
                             save_checkpoint(
                                 checkpoint_state(
                                     self.model, self.optimizer, val_loss, epoch, it
                                 ),
                                 is_best,
-                                filename=self.checkpoint_name,
+                                filename="{}_ep{}".format(self.checkpoint_name, epoch),
                                 bestname=self.best_name +'_%.4f'% val_loss,
                                 bestname_pure=self.best_name,
                             )   #
