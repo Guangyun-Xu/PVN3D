@@ -37,7 +37,7 @@ class Config(object):
         n_train_frame = len(self.train_list)
         n_test_frame = len(self.test_list)
 
-        self.n_total_epoch = 5
+        self.n_total_epoch =10
         self.mini_batch_size = 2
         self.num_mini_batch_per_epoch = n_train_frame
         self.val_mini_batch_size = 2
