@@ -421,7 +421,7 @@ class Trainer(object):
                                 ),
                                 is_best,
                                 filename="{}_data{}_ep{}".format(self.checkpoint_name, config.n_train_frame, epoch),
-                                bestname=self.best_name +'_%.4f'% val_loss,
+                                bestname=self.best_name + '_%.4f'% val_loss + "ep{}".format(epoch),
                                 bestname_pure=self.best_name,
                             )   #
                             info_p = self.checkpoint_name.replace(
