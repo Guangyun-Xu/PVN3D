@@ -445,12 +445,15 @@ class Trainer(object):
 
 if __name__ == "__main__":
     cls_id = '5'
-    n_data = 500
+    n_data = 1000
+    device_id = 0
     print("cls_id: ", cls_id)
+    print("n_data: ", n_data)
+    print("device_id: ", device_id)
     trainDataPath = '../datasets/BOP/BOP_Dataset/LM-O/train_pbr/trainListSplit{}_{}.txt'.format(n_data, cls_id)
     validDataPath = '../datasets/BOP/BOP_Dataset/LM-O/BOP_test19-20/validList_{}.txt'.format(cls_id)
     config = Config(trainDataPath, validDataPath)
-    device_id = 3
+
     if not args.eval_net:
         # 初始化DataLoader,使得DataLoader拥有训练数据的信息
         # 指定物体的种类,从而获得对应的元数据(主要是相机参数)
