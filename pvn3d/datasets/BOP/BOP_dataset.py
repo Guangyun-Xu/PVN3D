@@ -18,6 +18,8 @@ import time
 
 
 
+
+
 class BOPDataset():
     def __init__(self, data_list_path, cls_id):
         # 方法调用
@@ -133,8 +135,10 @@ class BOPDataset():
 
 
     def get_item(self, item_name):
+        root_path = os.path.dirname(__file__)
         words = item_name.split()
-        folderName = words[0]
+        folderName = words[0].lstrip("./")
+        folderName = os.path.join(root_path, folderName)
         rgbName = words[1]
         sceneId = rgbName[:-4]
         depthName = words[2]
@@ -232,7 +236,7 @@ class BOPDataset():
 
     # 接收一个索引,然后返回用于训练的数据和标签
     def __getitem__(self, idx):  # 调用函数实例时传入
-        print("load {}th data...".format(idx))
+        # print("load {}th data...".format(idx))
         item_name = self.data_list[idx]
         data = self.get_item(item_name)
         while data is None:
@@ -251,7 +255,7 @@ def main():
     pre_processing = False
 
     # dataListPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/BOP_test19-20/validList_8.txt'
-    dataListPath = './BOP_Dataset/LM-O/train_pbr/trainListSplit100_{}.txt'.format(cls)
+    dataListPath = './BOP_Dataset/LM-O/train_pbr/trainListSplit500_{}.txt'.format(cls)
 
     config = Config(dataListPath, dataListPath)
 
