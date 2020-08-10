@@ -30,10 +30,8 @@ import shutil
 import tqdm
 from pvn3d.lib.utils.etw_pytorch_utils.viz import *
 from pvn3d.lib import PVN3D
-#from pvn3d.datasets.linemod.linemod_dataset import LM_Dataset
-from pvn3d.datasets.BOP.lm_o.lm_o_dataset import LM_O_Dataset
 from pvn3d.datasets.BOP.BOP_dataset import BOPDataset
-from pvn3d.lib.loss import OFLoss, FocalLoss
+from pvn3d.lib.loss import FocalLoss
 from pvn3d.common_BOP import Config
 from pvn3d.lib.utils.sync_batchnorm import convert_model
 from pvn3d.lib.utils.warmup_scheduler import CyclicLR
@@ -420,7 +418,7 @@ class Trainer(object):
                                     self.model, self.optimizer, val_loss, epoch, it
                                 ),
                                 is_best,
-                                filename="{}_data{}_ep{}".format(self.checkpoint_name, config.n_train_frame, epoch),
+                                filename="{}_data{}_ep{}_Vloss{}".format(self.checkpoint_name, config.n_train_frame, epoch, val_loss),
                                 bestname=self.best_name + '_%.4f'% val_loss + "ep{}".format(epoch),
                                 bestname_pure=self.best_name,
                             )   #
@@ -444,111 +442,115 @@ class Trainer(object):
 
 
 if __name__ == "__main__":
-    cls_id = '5'
-    n_data = 1000
-    device_id = 0
-    print("cls_id: ", cls_id)
-    print("n_data: ", n_data)
-    print("device_id: ", device_id)
-    trainDataPath = '../datasets/BOP/BOP_Dataset/LM-O/train_pbr/trainListSplit{}_{}.txt'.format(n_data, cls_id)
-    validDataPath = '../datasets/BOP/BOP_Dataset/LM-O/BOP_test19-20/validList_{}.txt'.format(cls_id)
-    config = Config(trainDataPath, validDataPath)
+    # cls_id = '5'
+    n_data = 500
+    device_id = [0]
+    # device = torch.device("cuda:")
 
-    if not args.eval_net:
-        # 初始化DataLoader,使得DataLoader拥有训练数据的信息
-        # 指定物体的种类,从而获得对应的元数据(主要是相机参数)
-        # train_ds = LM_Dataset('train', cls_type=args.cls)
-        train_ds = BOPDataset(trainDataPath, cls_id)
-        train_loader = torch.utils.data.DataLoader(
-            train_ds, batch_size=config.mini_batch_size, shuffle=True,
-            num_workers=6
-        )  # num_workers:加载数据的进程数
+    cls_list = [6, 9, 10, 11, 12]
+
+    for cls in cls_list:
+        cls_id = str(cls)
+        print("cls_id: ", cls_id)
+        print("n_data: ", n_data)
+        print("device_id: ", device_id)
+        trainDataPath = '../datasets/BOP/BOP_Dataset/LM-O/train_pbr/trainListSplit{}_{}.txt'.format(n_data, cls_id)
+        validDataPath = '../datasets/BOP/BOP_Dataset/LM-O/BOP_test19-20/validList_{}.txt'.format(cls_id)
+        config = Config(trainDataPath, validDataPath)
+
+        if not args.eval_net:
+            # 初始化DataLoader,使得DataLoader拥有训练数据的信息
+            # 指定物体的种类,从而获得对应的元数据(主要是相机参数)
+            # train_ds = LM_Dataset('train', cls_type=args.cls)
+            train_ds = BOPDataset(trainDataPath, cls_id)
+            train_loader = torch.utils.data.DataLoader(
+                train_ds, batch_size=config.mini_batch_size, shuffle=True,
+                num_workers=6
+            )  # num_workers:加载数据的进程数
 
 
-        val_ds = BOPDataset(validDataPath, cls_id)
-        val_loader = torch.utils.data.DataLoader(
-            val_ds, batch_size=config.test_mini_batch_size, shuffle=False,
-            num_workers=6
+            val_ds = BOPDataset(validDataPath, cls_id)
+            val_loader = torch.utils.data.DataLoader(
+                val_ds, batch_size=config.test_mini_batch_size, shuffle=False,
+                num_workers=6
+            )
+
+        model = PVN3D(
+            num_classes=2, pcld_input_channels=6, pcld_use_xyz=True,
+            num_points=config.n_sample_points
+        ).cuda(device_id[0])
+        model = convert_model(model)
+        model.cuda(device_id[0])
+
+        optimizer = optim.Adam(
+            model.parameters(), lr=args.lr, weight_decay=args.weight_decay
         )
 
-    model = PVN3D(
-        num_classes=2, pcld_input_channels=6, pcld_use_xyz=True,
-        num_points=config.n_sample_points
-    ).cuda(device_id)
-    # model = convert_model(model)
-    # model.cuda()
+        # default value
+        it = -1  # for the initialize value of `LambdaLR` and `BNMomentumScheduler`
+        best_loss = 1e10
+        start_epoch = 1
 
-    optimizer = optim.Adam(
-        model.parameters(), lr=args.lr, weight_decay=args.weight_decay
-    )
+        cur_mdl_pth = os.path.join(config.log_model_dir, cls_id, 'pvn3d.pth.tar')
+        if args.checkpoint is None and os.path.exists(cur_mdl_pth):
+            args.checkpoint = cur_mdl_pth
+        # load status from checkpoint
+        if args.checkpoint is not None:
+            checkpoint_status = load_checkpoint(
+                model, optimizer, filename=args.checkpoint
+            )
+            if checkpoint_status is not None:
+                it, start_epoch, best_loss = checkpoint_status
 
-    # default value
-    it = -1  # for the initialize value of `LambdaLR` and `BNMomentumScheduler`
-    best_loss = 1e10
-    start_epoch = 1
-
-    cur_mdl_pth = os.path.join(config.log_model_dir, cls_id, 'pvn3d.pth.tar')
-    if args.checkpoint is None and os.path.exists(cur_mdl_pth):
-        args.checkpoint = cur_mdl_pth
-    # load status from checkpoint
-    if args.checkpoint is not None:
-        checkpoint_status = load_checkpoint(
-            model, optimizer, filename=args.checkpoint
+        model = nn.DataParallel(
+            model, device_ids=device_id
         )
-        if checkpoint_status is not None:
-            it, start_epoch, best_loss = checkpoint_status
 
-    # model = nn.DataParallel(
-    #     model
-    # )
+        # 学习率变化策略
+        lr_scheduler = CyclicLR(
+            optimizer, base_lr=1e-5, max_lr=1e-3,
+            step_size=config.n_total_epoch * config.num_mini_batch_per_epoch // 6,
+            mode='triangular'
+        )
 
-    # 学习率变化策略
-    lr_scheduler = CyclicLR(
-        optimizer, base_lr=1e-5, max_lr=1e-3,
-        step_size=config.n_total_epoch * config.num_mini_batch_per_epoch // 6,
-        mode='triangular'
-    )
+        bnm_lmbd = lambda it: max(
+            args.bn_momentum
+            * args.bn_decay ** (int(it * config.mini_batch_size / args.decay_step)),
+            bnm_clip,
+        )
+        bnm_scheduler = pt_utils.BNMomentumScheduler(
+            model, bn_lambda=bnm_lmbd, last_epoch=it
+        )
 
-    bnm_lmbd = lambda it: max(
-        args.bn_momentum
-        * args.bn_decay ** (int(it * config.mini_batch_size / args.decay_step)),
-        bnm_clip,
-    )
-    bnm_scheduler = pt_utils.BNMomentumScheduler(
-        model, bn_lambda=bnm_lmbd, last_epoch=it
-    )
+        it = max(it, 0)  # for the initialize value of `trainer.train`
 
-    it = max(it, 0)  # for the initialize value of `trainer.train`
+        model_fn = model_fn_decorator(
+            nn.DataParallel(FocalLoss(gamma=2)),
+        )
+        # model_fn = model_fn_decorator(FocalLoss(gamma=2))
 
-    # model_fn = model_fn_decorator(
-    #     nn.DataParallel(FocalLoss(gamma=2)),
-    #     nn.DataParallel(OFLoss()),
-    #     args.test,
-    # )
-    model_fn = model_fn_decorator(FocalLoss(gamma=2))
+        viz = CmdLineViz()
 
-    viz = CmdLineViz()
+        viz.text(pprint.pformat(vars(args)))
 
-    viz.text(pprint.pformat(vars(args)))
+        checkpoint_fd = '../datasets/BOP/BOP_Dataset/LM-O/checkPoint'
 
-    checkpoint_fd = '../datasets/BOP/BOP_Dataset/LM-O/checkPoint'
-
-    trainer = Trainer(
-        model,
-        model_fn,
-        optimizer,
-        checkpoint_name = os.path.join(checkpoint_fd, "{}_pvn3d".format(cls_id)),
-        best_name = os.path.join(checkpoint_fd, "{}_pvn3d_best".format(cls_id)),
-        lr_scheduler = lr_scheduler,
-        bnm_scheduler = bnm_scheduler,
-        viz = viz,
-    )
+        trainer = Trainer(
+            model,
+            model_fn,
+            optimizer,
+            checkpoint_name = os.path.join(checkpoint_fd, "{}_pvn3d".format(cls_id)),
+            best_name = os.path.join(checkpoint_fd, "{}_pvn3d_best".format(cls_id)),
+            lr_scheduler = lr_scheduler,
+            bnm_scheduler = bnm_scheduler,
+            viz = viz,
+        )
 
 
-    trainer.train(
-        it, start_epoch, config.n_total_epoch, train_loader, val_loader,
-        best_loss=best_loss
-    )  # it: 已进行的迭代次数,没有预训练模型时为-1
+        trainer.train(
+            it, start_epoch, config.n_total_epoch, train_loader, val_loader,
+            best_loss=best_loss
+        )  # it: 已进行的迭代次数,没有预训练模型时为-1
 
-    if start_epoch == config.n_total_epoch:
-        _ = trainer.eval_epoch(val_loader)
+        if start_epoch == config.n_total_epoch:
+            _ = trainer.eval_epoch(val_loader)
