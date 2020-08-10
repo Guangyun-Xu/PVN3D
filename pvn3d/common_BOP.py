@@ -3,12 +3,20 @@ import yaml
 import numpy as np
 from pvn3d.lib.utils.basic_utils import Basic_Utils
 
+
 def ensure_fd(fd):
     if not os.path.exists(fd):
         os.system('mkdir -p {}'.format(fd))
 
+
 class Config(object):
-    def __init__(self, train_list_dir, test_list_dir):
+    def __init__(self, train_list_dir='./datasets/BOP/BOP_Dataset/LM-O/train_pbr/dataList_8.txt',
+                 test_list_dir='./datasets/BOP/BOP_Dataset/LM-O/train_pbr/dataList_8.txt'):
+        path = os.path.dirname(__file__)
+        train_list_dir = train_list_dir.lstrip("./")
+        train_list_dir = os.path.join(path, train_list_dir)
+        test_list_dir = test_list_dir.lstrip("./")
+        test_list_dir = os.path.join(path, test_list_dir)
         self.bs_utils = Basic_Utils()
 
         self.dataset_name = 'bop'
@@ -37,7 +45,7 @@ class Config(object):
         self.n_train_frame = len(self.train_list)
         self.n_test_frame = len(self.test_list)
 
-        self.n_total_epoch =10
+        self.n_total_epoch = 10
         self.mini_batch_size = 2
         self.num_mini_batch_per_epoch = self.n_train_frame
         self.val_mini_batch_size = 2
@@ -46,3 +54,6 @@ class Config(object):
 
         self.voxel_size = 0.01  # 以米为单位
         self.n_sample_points = 20000
+
+        # dataset information
+        self.LMO_obj_list = [1, 5, 6, 8, 9, 10, 11, 12]
