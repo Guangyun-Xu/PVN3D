@@ -207,7 +207,7 @@ class BOPDataset():
         labels = labels[original_idx_down].astype(np.int32)
         n_target = labels.nonzero()
         n_target = len(n_target[0])
-        if n_target < 10:
+        if n_target < 5:
            # print("n_target < 10")
             return None
 
@@ -248,7 +248,7 @@ class BOPDataset():
         return data
 
 def main():
-    cls = "5"
+    cls = "12"
     show = True
     test_all = False
     test_range = 10
