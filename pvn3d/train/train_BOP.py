@@ -7,7 +7,8 @@ from __future__ import (
 )
 import os
 import sys
-sys.path.insert(0, '/home/yumi/Project/6D_pose_estmation/PVN3D/pvn3d')
+sys.path.insert(0, '../pvn3d')
+sys.path.append("../")
 # os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 # import open3d as o3d  # 必须声明在torch前
 # __all__ = [o3d]
@@ -23,7 +24,7 @@ from torch.utils.data import DataLoader
 import pprint
 import os.path as osp
 
-print(sys.path)
+# print(sys.path)
 import argparse
 import time
 import shutil
