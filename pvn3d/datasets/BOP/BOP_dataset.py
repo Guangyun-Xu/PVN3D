@@ -174,56 +174,60 @@ class BOPDataset():
         choose_rerank = np.array([i for i in range(choose.shape[0])])
         cld_normal_o3d = self.get_point_normal(cld)
         cld_normal_down = self.pcd_down_sample(cld_normal_o3d, self.voxel_size, self.n_sample_points, choose_rerank)
-        original_idx_down = np.asarray(cld_normal_down.colors).astype(np.int)
-        original_idx_down = original_idx_down[:, 0].tolist()
-        cld_down = np.asarray(cld_normal_down.points)
+        if cld_normal_down:
+            original_idx_down = np.asarray(cld_normal_down.colors).astype(np.int)
+            original_idx_down = original_idx_down[:, 0].tolist()
+            cld_down = np.asarray(cld_normal_down.points)
 
-        # cld_rgb_normal预处理
-        rgb_lst = []
-        for ic in range(rgb.shape[0]):
-            rgb_lst.append(
-                rgb[ic].flatten()[choose].astype(np.float32)
-            )  # 提取点云对应的像素
-        rgb_pt = np.transpose(np.array(rgb_lst), (1, 0)).copy()
+            # cld_rgb_normal预处理
+            rgb_lst = []
+            for ic in range(rgb.shape[0]):
+                rgb_lst.append(
+                    rgb[ic].flatten()[choose].astype(np.float32)
+                )  # 提取点云对应的像素
+            rgb_pt = np.transpose(np.array(rgb_lst), (1, 0)).copy()
 
-        cld_rgb = np.concatenate((cld, rgb_pt), axis=1)
-        cld_rgb = cld_rgb[original_idx_down, :]
+            cld_rgb = np.concatenate((cld, rgb_pt), axis=1)
+            cld_rgb = cld_rgb[original_idx_down, :]
 
-        normal = np.asarray(cld_normal_down.normals)  # 计算法线
-        normal[np.isnan(normal)] = 0.0
-        cld_rgb_normal = np.concatenate((cld_rgb, normal), axis=1)
+            normal = np.asarray(cld_normal_down.normals)  # 计算法线
+            normal[np.isnan(normal)] = 0.0
+            cld_rgb_normal = np.concatenate((cld_rgb, normal), axis=1)
 
-        # choose 预处理
-        choose = np.array([choose])
-        choose_dow = choose[:, original_idx_down]
+            # choose 预处理
+            choose = np.array([choose])
+            choose_dow = choose[:, original_idx_down]
 
-        # cls_id 预处理 (作用不明)
-        cls_ids = np.zeros((2, 1))
+            # cls_id 预处理 (作用不明)
+            cls_ids = np.zeros((2, 1))
 
-        # labels 预处理
-        if len(labels.shape) > 2:
-            labels = labels[:, :, 0]  # 转成单通道
-        labels = labels.flatten()[choose][0]  # labels : mask
-        labels = labels[original_idx_down].astype(np.int32)
-        n_target = labels.nonzero()
-        n_target = len(n_target[0])
-        if n_target < 5:
-           # print("n_target < 10")
+            # labels 预处理
+            if len(labels.shape) > 2:
+                labels = labels[:, :, 0]  # 转成单通道
+            labels = labels.flatten()[choose][0]  # labels : mask
+            labels = labels[original_idx_down].astype(np.int32)
+            n_target = labels.nonzero()
+            n_target = len(n_target[0])
+            if n_target < 5:
+               # print("n_target < 10")
+                return None
+
+
+
+
+
+
+
+            # choose: 降采样后的点对应的原深度图上的索引
+            return torch.from_numpy(rgb.astype(np.float32)), \
+                   torch.from_numpy(cld_down.astype(np.float32)), \
+                   torch.from_numpy(cld_rgb_normal.astype(np.float32)), \
+                   torch.LongTensor(choose_dow.astype(np.int32)), \
+                   torch.LongTensor(cls_ids.astype(np.int32)), \
+                   torch.LongTensor(labels.astype(np.int32))
+
+        else:
             return None
-
-
-
-
-
-
-
-        # choose: 降采样后的点对应的原深度图上的索引
-        return torch.from_numpy(rgb.astype(np.float32)), \
-               torch.from_numpy(cld_down.astype(np.float32)), \
-               torch.from_numpy(cld_rgb_normal.astype(np.float32)), \
-               torch.LongTensor(choose_dow.astype(np.int32)), \
-               torch.LongTensor(cls_ids.astype(np.int32)), \
-               torch.LongTensor(labels.astype(np.int32))
 
 
 
