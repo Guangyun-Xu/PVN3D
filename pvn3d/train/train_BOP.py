@@ -145,14 +145,20 @@ def checkpoint_state(model=None, optimizer=None, best_prec=None, epoch=None, it=
 
 
 def save_checkpoint(
-        state, is_best, filename="checkpoint", bestname="model_best",
-        bestname_pure='pvn3d_best'
+        state, is_best_loss, is_best_precision, filename="checkpoint", bestname="model_best",
+        bestname_pure='pvn3d_best', epoch=0, precision=0, recall=0
 ):
-    filename = "{}.pth.tar".format(filename)
-    torch.save(state, filename)
-    if is_best:
-        shutil.copyfile(filename, "{}.pth.tar".format(bestname))
-        shutil.copyfile(filename, "{}.pth.tar".format(bestname_pure))
+    filename1 = "{}.pth.tar".format(filename)
+    torch.save(state, filename1)
+    if is_best_precision:
+        shutil.copyfile(filename1, "{}.pth.tar".format(bestname))
+        shutil.copyfile(filename1, "{}.pth.tar".format(bestname_pure))
+    if is_best_loss:
+        shutil.copyfile(filename1, "{}_{}.pth.tar".format(filename, "bestloss"))
+
+
+
+
 
 
 def load_checkpoint(model=None, optimizer=None, filename="checkpoint"):
@@ -215,17 +221,53 @@ def model_fn_decorator(
             # w = [2.0, 1.0, 1.0]
             loss = loss_rgbd_seg
 
-            _, classes_rgbd = torch.max(pred_rgbd_seg, -1)
+
+
+            _, predPointsMask = torch.max(pred_rgbd_seg, -1)
             acc_rgbd = (
-                classes_rgbd == labels
+                predPointsMask == labels
             ).float().sum() / labels.numel()
+
+            # mask
+            TP_mask = labels & predPointsMask  # true positive
+            FN_mask = labels - TP_mask  # false negative
+            FP_mask = predPointsMask - TP_mask  # false positive
+
+            # idx
+            TP_idx = TP_mask[0].nonzero()
+
+            FN_idx = FN_mask[0].nonzero()
+            FP_idx = FP_mask[0].nonzero()
+
+            # number
+            n_TP = len(TP_idx)
+            n_FN = len(FN_idx)
+            n_FP = len(FP_idx)
+
+            if (n_TP + n_FN):
+                recall = (
+                    n_TP/(n_TP + n_FN)
+                )
+            else:
+                recall = 0
+
+            if (n_TP + n_FP):
+                precision = (
+                        n_TP / (n_TP + n_FP)
+                )
+            else:
+                precision = 0
+
+
+
 
 
 
         return modelreturn(
             (pred_rgbd_seg), loss,
             {
-                "acc_rgbd": acc_rgbd.item(),
+                "precision": precision,
+                "recall":recall,
                 "loss": loss.item(),
                 "loss_rgbd_seg": loss_rgbd_seg.item(),
                 "loss_target": loss.item(),
@@ -356,6 +398,7 @@ class Trainer(object):
 
         it = start_it
         _, eval_frequency = is_to_eval(0, it)
+        best_precision = 1e-4
 
         # tqdm.trange() : 显示指定范围内的进度
         # tqdm.tqdm() : 进度条
@@ -411,26 +454,47 @@ class Trainer(object):
                             if self.viz is not None:
                                 self.viz.update("val", it, res)
 
-                            is_best = val_loss < best_loss
+                            precision = res['precision']
+                            precision = np.asarray(precision).mean()
+                            recall = res['recall']
+                            recall = np.asarray(recall).mean()
+                            is_best_precision = precision > best_precision
+
+                            is_best_loss = val_loss < best_loss
                             best_loss = min(best_loss, val_loss)
+                            best_precision = max(precision, best_precision)
 
                             save_checkpoint(
                                 checkpoint_state(
                                     self.model, self.optimizer, val_loss, epoch, it
                                 ),
-                                is_best,
-                                filename="{}_data{}_ep{}_Vloss{}".format(self.checkpoint_name, config.n_train_frame, epoch, val_loss),
-                                bestname=self.best_name + '_%.4f'% val_loss + "ep{}".format(epoch),
+                                is_best_loss,
+                                is_best_precision,
+                                filename="{}_data{}".format(self.checkpoint_name, config.n_train_frame),
+                                bestname=self.best_name,
                                 bestname_pure=self.best_name,
+                                epoch=epoch,
+                                precision=precision,
+                                recall=recall
                             )   #
-                            info_p = self.checkpoint_name.replace(
-                                '.pth.tar','_epoch.txt'
+
+                            test_log_path = "{}_{}_{}_test_log.txt".format(
+                                self.checkpoint_name, cls_id, config.n_train_frame)
+                            test_log = open(test_log_path, 'a')
+                            line = "cls_id:{},n_data:{},epoch:{},val_loss:{},precision:{},recall:{}".format(
+                                cls_id, config.n_train_frame, epoch, val_loss, precision, recall
                             )
-                            os.system(
-                                'echo {} {} >> {}'.format(
-                                    it, val_loss, info_p
-                                )
-                            )
+                            line = line + '\n'
+                            test_log.writelines(line)
+
+                            # info_p = self.checkpoint_name.replace(
+                            #     '.pth.tar','_epoch.txt'
+                            # )
+                            # os.system(
+                            #     'echo {} {} >> {}'.format(
+                            #         it, val_loss, info_p
+                            #     )
+                            # )
 
                         pbar = tqdm.tqdm(
                             total=eval_frequency, leave=False, desc="train"
@@ -438,17 +502,18 @@ class Trainer(object):
                         pbar.set_postfix(dict(total_it=it))
 
                     self.viz.flush()
+            test_log.close()
 
-        return best_loss
+        return best_loss, best_precision
 
 
 if __name__ == "__main__":
     # cls_id = '5'
-    n_data = 500
+    n_data = 1000
     device_id = [0]
     # device = torch.device("cuda:")
 
-    cls_list = [6, 9, 10, 11, 12]
+    cls_list = [10, 11, 12]
 
     for cls in cls_list:
         cls_id = str(cls)
@@ -541,7 +606,7 @@ if __name__ == "__main__":
             model_fn,
             optimizer,
             checkpoint_name = os.path.join(checkpoint_fd, "{}_pvn3d".format(cls_id)),
-            best_name = os.path.join(checkpoint_fd, "{}_pvn3d_best".format(cls_id)),
+            best_name = os.path.join(checkpoint_fd, "{}_pvn3d_best_{}".format(cls_id, config.n_train_frame)),
             lr_scheduler = lr_scheduler,
             bnm_scheduler = bnm_scheduler,
             viz = viz,
