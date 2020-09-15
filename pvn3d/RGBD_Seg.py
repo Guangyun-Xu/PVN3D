@@ -39,14 +39,16 @@ def predSeg(model, data, epoch=0, obj_id=''):
         cu_dt = [item.to("cuda", non_blocking=True) for item in data]
         rgb, pcld, cld_rgb_nrm, choose, cls_ids, labels = cu_dt
         pred_rgbd_seg = model(cld_rgb_nrm, rgb, choose)
-        _, segIdx = torch.max(pred_rgbd_seg, -1)  # segIdx:没一行中,最大的数在行中的索引
+        _, segIdx = torch.max(pred_rgbd_seg, -1)  # segIdx:每一行中,最大的数在行中的索引
         predMask = segIdx[0]
         objMask = predMask == 1
         predPoints = pcld[:, objMask,:]
         predPoints = predPoints[0]
         predPoints = predPoints.cpu().numpy()
+        predMask = objMask.cpu().numpy()
+        # target_idx = target_idx == 1
 
-    return predPoints
+    return predPoints, predMask
 
 
 
@@ -54,14 +56,16 @@ def predSeg(model, data, epoch=0, obj_id=''):
 def main():
 
     # 加载数据
-    testDataList = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/train_pbr/trainListSplit500_8.txt'
-    cls_id = '8'
+    cls_id = '9'
+    n_data = 500
+    # testDataList = './datasets/BOP/BOP_Dataset/LM-O/train_pbr/trainListSplit{}_{}.txt'.format(n_data, cls_id)
+    testDataList = './datasets/BOP/BOP_Dataset/LM-O/BOP_test19-20/validList_{}.txt'.format(cls_id)
     testDataset = BOPDataset(testDataList, cls_id)
     testDataLoader = DataLoader(dataset=testDataset, batch_size=1, shuffle=False,
                                 num_workers=6)
 
     # 定义模型并加载参数
-    checkPointPath = '/media/yumi/Datas/6D_Dataset/BOP_Dataste/LM-O/checkPoint/{}_pvn3d_best.pth.tar'.format(cls_id)
+    checkPointPath = './datasets/BOP/BOP_Dataset/LM-O/checkPoint/{}_pvn3d_best_{}.pth.tar'.format(cls_id, n_data)
     model = PVN3D(
         num_classes=2, pcld_input_channels=6, pcld_use_xyz=True,
         num_points=20000
@@ -79,26 +83,47 @@ def main():
         enumerate(testDataLoader), leave=False, desc="val"
     ):
         if data:
-            predPoints = predSeg(model, data, epoch=i, obj_id=cls_id)
-            predPoints = predPoints.astype(np.float32)
-            predPointsO3D = o3d.geometry.PointCloud()
-            predPointsO3D.points = o3d.Vector3dVector(predPoints)
-            # 将所有预测出的点设置为红色
-            predPointsColors = [[255, 0, 0] for i in range(len(predPoints))]
-            predPointsO3D.colors = o3d.Vector3dVector(predPointsColors)
-            print(predPointsO3D)
-
+            # scene
             scenePointcloud = data[2][0].numpy()
             scenePointcloudO3D = o3d.geometry.PointCloud()
             scenePointcloudO3D.points = o3d.Vector3dVector(scenePointcloud[:, 0:3])
             color = scenePointcloud[:, 3:6]/255
             scenePointcloudO3D.colors = o3d.Vector3dVector(color[:, ::-1])
-            # scenePointColor = [[0, 255, 0] for i in range(len(scenePointcloud))]
-            #
-            # # scenePointColor = 255 - scenePointcloud[:, 3:6].astype(int)
-            # scenePointcloudO3D.colors = o3d.Vector3dVector(scenePointColor)
-            # o3d.write_point_cloud("/home/yumi/Desktop/SampleDate/o3d0730.ply", scenePointcloudO3D)
-            o3d.visualization.draw_geometries([predPointsO3D, scenePointcloudO3D])
+
+            # label
+            labels = data[5][0].numpy()
+
+            # pre
+            predPoints, predPointsMask = predSeg(model, data, epoch=i, obj_id=cls_id)
+
+            # mask
+            TP_mask = labels & predPointsMask  # true positive
+            FN_mask = labels - TP_mask  # false negative
+            FP_mask = predPointsMask - TP_mask  # false positive
+
+            # idx
+            TP_idx = TP_mask.nonzero()[0]
+            FN_idx = FN_mask.nonzero()[0]
+            FP_idx = FP_mask.nonzero()[0]
+
+            # points
+            TP_points = o3d.select_down_sample(scenePointcloudO3D, TP_idx)
+            FN_points = o3d.select_down_sample(scenePointcloudO3D, FN_idx)
+            FP_points = o3d.select_down_sample(scenePointcloudO3D, FP_idx)
+
+            # set color
+            TP_points.paint_uniform_color([255, 0, 0])  # red
+            FN_points.paint_uniform_color([0, 255, 0])  # green
+            FP_points.paint_uniform_color([0, 0, 255])  #
+
+            # remove pred and target from scene
+            predPointsIdx = predPointsMask.nonzero()[0]
+            target_unpred_and_pred_points_idx = np.append(predPointsIdx, FN_idx)
+            scenePointcloudO3D = o3d.select_down_sample(scenePointcloudO3D, target_unpred_and_pred_points_idx, True)
+
+            print(len(TP_idx))
+
+            o3d.visualization.draw_geometries([scenePointcloudO3D, TP_points, FN_points, FP_points])
         else:
             print("{}th data is None!".format(i))
 
